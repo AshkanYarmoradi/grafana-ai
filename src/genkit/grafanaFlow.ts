@@ -159,6 +159,8 @@ export const grafanaFlow = ai.defineFlow(
             return {answer: "No datasources available in your Grafana instance."};
         }
 
+        console.log(`[Flow] Found ${availableDatasources.length} available datasources:`, availableDatasources);
+
         // Step 2: Use an LLM to reason about which datasource to use and generate a query
         // We provide the LLM with the user's question and the list of datasources
         // We ask it to output a structured JSON object, which Genkit validates with Zod
@@ -203,7 +205,7 @@ export const grafanaFlow = ai.defineFlow(
 
         const {uid, query, type, from = 'now-1h', to = 'now'} = generateResponse.output;
 
-        console.log(`[Flow] LLM decided to use datasource '${uid}' with query: ${query}`);
+        console.log(`[Flow] LLM decided to use datasource '${uid}' with query: ${query} (type: ${type})`);
 
         // Step 3: Execute the query against the selected datasource
         try {
