@@ -161,6 +161,14 @@ export function formatResultInterpretationPrompt(
 export function getErrorMessage(error: unknown): string {
   const { ERROR_MESSAGES } = PROMPT_TEMPLATES;
 
+  // Extract error message if available
+  let errorMessage = '';
+  if (error instanceof Error) {
+    errorMessage = `Error: ${error.message}`;
+  } else if (error && typeof error === 'object' && 'message' in error) {
+    errorMessage = `Error: ${(error as { message: string }).message}`;
+  }
+
   // Handle GrafanaApiError specifically if it's imported and used
   if (error && typeof error === 'object' && 'statusCode' in error) {
     const statusCode = (error as { statusCode: number }).statusCode;
@@ -174,8 +182,8 @@ export function getErrorMessage(error: unknown): string {
     }
   }
 
-  // Default error message
-  return ERROR_MESSAGES.GENERAL_ERROR;
+  // Return the error message if available, otherwise use the default error message
+  return errorMessage || ERROR_MESSAGES.GENERAL_ERROR;
 }
 
 /**

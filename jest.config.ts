@@ -12,7 +12,15 @@ const customJestConfig = {
   moduleNameMapper: {
     // Handle module aliases (this will be automatically configured for you soon)
     '^@/(.*)$': '<rootDir>/src/$1',
+    // Mock specific modules for tests
+    '^react-markdown$': '<rootDir>/__mocks__/react-markdown.js',
+    '^framer-motion$': '<rootDir>/__mocks__/framer-motion.js',
+    '^@genkit-ai/next/client$': '<rootDir>/__mocks__/@genkit-ai/next/client.js',
+    '^@/genkit/grafanaFlow$': '<rootDir>/__mocks__/@/genkit/grafanaFlow.js',
   },
+  transformIgnorePatterns: [
+    '/node_modules/(?!react-markdown|mdast-util-.*|micromark.*|unist.*|vfile.*|unified|bail|is-plain-obj|trough|remark.*|decode-named-character-reference|character-entities|property-information|hast-util-whitespace|space-separated-tokens|comma-separated-tokens|mdast-util-to-hast|mdast-util-to-string|trim-lines|markdown-table|escape-string-regexp)',
+  ],
   testMatch: [
     '**/__tests__/**/*.ts?(x)',
     '**/?(*.)+(spec|test).ts?(x)'
