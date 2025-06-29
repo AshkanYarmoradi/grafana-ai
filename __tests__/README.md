@@ -1,6 +1,7 @@
 # Testing Documentation for Grafana AI
 
-This directory contains comprehensive tests for the Grafana AI application. The tests are designed to cover all aspects of the application, including UI components, API services, utility functions, and integration tests.
+This directory contains comprehensive tests for the Grafana AI application. The tests are designed to cover all aspects
+of the application, including UI components, API services, utility functions, and integration tests.
 
 ## Testing Framework
 
@@ -13,24 +14,26 @@ The application uses the following testing tools:
 
 ## Test Structure
 
-The tests are organized alongside the source code files they test, following the convention of naming test files with a `.test.ts` or `.test.tsx` extension. This makes it easy to find the tests for a specific file and keeps the tests close to the code they're testing.
+The tests are organized alongside the source code files they test, following the convention of naming test files with a
+`.test.ts` or `.test.tsx` extension. This makes it easy to find the tests for a specific file and keeps the tests close
+to the code they're testing.
 
 ### Main Test Categories
 
 1. **UI Component Tests**: Tests for React components in the application
-   - `src/app/page.test.tsx`: Tests for the main page component
+    - `src/app/page.test.tsx`: Tests for the main page component
 
 2. **API Service Tests**: Tests for API-related functionality
-   - `src/genkit/grafanaApi.test.ts`: Tests for the Grafana API client
-   - `src/app/api/grafana/route.test.ts`: Tests for the API route handler
+    - `src/genkit/grafanaApi.test.ts`: Tests for the Grafana API client
+    - `src/app/api/grafana/route.test.ts`: Tests for the API route handler
 
 3. **Core Logic Tests**: Tests for the core business logic
-   - `src/genkit/grafanaFlow.test.ts`: Tests for the main Grafana AI flow
+    - `src/genkit/grafanaFlow.test.ts`: Tests for the main Grafana AI flow
 
 4. **Utility Function Tests**: Tests for utility functions
-   - `src/genkit/utils.test.ts`: Tests for utility functions
-   - `src/genkit/constants.test.ts`: Tests for constants
-   - `src/genkit/tools.test.ts`: Tests for Grafana API tools
+    - `src/genkit/utils.test.ts`: Tests for utility functions
+    - `src/genkit/constants.test.ts`: Tests for constants
+    - `src/genkit/tools.test.ts`: Tests for Grafana API tools
 
 ## Running Tests
 
@@ -50,12 +53,14 @@ npm run test:coverage
 ## Test Coverage
 
 The tests aim to achieve high code coverage across the application. The coverage thresholds are set to 70% for:
+
 - Statements
 - Branches
 - Functions
 - Lines
 
-You can view the coverage report by running `npm run test:coverage`. The report will be generated in the `coverage` directory.
+You can view the coverage report by running `npm run test:coverage`. The report will be generated in the `coverage`
+directory.
 
 ## Mocking Strategy
 
@@ -78,4 +83,5 @@ When adding new features to the application, please follow these guidelines for 
 
 ## Continuous Integration
 
-The tests are run automatically as part of the CI/CD pipeline to ensure that all changes pass the tests before being deployed.
+The tests are run automatically as part of the CI/CD pipeline to ensure that all changes pass the tests before being
+deployed.

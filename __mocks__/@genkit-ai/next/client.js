@@ -2,5 +2,5 @@
 const streamFlow = jest.fn();
 
 module.exports = {
-  streamFlow,
+    streamFlow,
 };
