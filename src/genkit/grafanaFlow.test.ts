@@ -1,9 +1,28 @@
 // Import the real module but we'll mock it below
-import { grafanaFlow as actualGrafanaFlow, googleAI } from './grafanaFlow';
+import { grafanaFlow } from './grafanaFlow';
 import { ai, listDashboards, getDashboard, getDashboardPanelData } from './tools';
 import { GrafanaApiError, GrafanaErrorType } from './grafanaApi';
 import { formatPanelSelectionPrompt, formatResultInterpretationPrompt, getErrorMessage, logDebug } from './utils';
 import { AI_MODELS, DEFAULT_TIME_RANGE } from './constants';
+
+// Define types for mocks to avoid using 'any'
+interface DashboardItem {
+  uid: string;
+  title: string;
+  url: string;
+  tags?: string[];
+  folderUid?: string;
+  folderTitle?: string;
+}
+
+interface PanelData {
+  frames: Array<{ data: { values: Array<Array<number>> } }>;
+}
+
+// Type for mock responses
+type MockResponse<T> = {
+  result: T;
+};
 
 // Mock dependencies
 jest.mock('./tools', () => ({
@@ -71,10 +90,10 @@ jest.mock('@genkit-ai/googleai', () => ({
 describe('GrafanaFlow', () => {
   // Mock implementations
   const mockSendChunk = jest.fn();
-  // Get reference to the mocked grafanaFlow
-  const { grafanaFlow } = require('./grafanaFlow');
+  // grafanaFlow is imported at the top of the file
   const mockListDashboardsRun = listDashboards.run as jest.MockedFunction<typeof listDashboards.run>;
-  const mockGetDashboardRun = getDashboard.run as jest.MockedFunction<typeof getDashboard.run>;
+  // Commented out as it's not used
+  // const mockGetDashboardRun = getDashboard.run as jest.MockedFunction<typeof getDashboard.run>;
   const mockGetDashboardPanelDataRun = getDashboardPanelData.run as jest.MockedFunction<typeof getDashboardPanelData.run>;
   const mockFormatPanelSelectionPrompt = formatPanelSelectionPrompt as jest.MockedFunction<typeof formatPanelSelectionPrompt>;
   const mockFormatResultInterpretationPrompt = formatResultInterpretationPrompt as jest.MockedFunction<typeof formatResultInterpretationPrompt>;
@@ -87,8 +106,8 @@ describe('GrafanaFlow', () => {
     jest.clearAllMocks();
 
     // Mock ai.generate and ai.generateStream
-    (ai as any).generate = mockGenerate;
-    (ai as any).generateStream = mockGenerateStream;
+    (ai as unknown as { generate: typeof mockGenerate }).generate = mockGenerate;
+    (ai as unknown as { generateStream: typeof mockGenerateStream }).generateStream = mockGenerateStream;
 
     // Mock formatPanelSelectionPrompt
     mockFormatPanelSelectionPrompt.mockReturnValue('mocked panel selection prompt');
