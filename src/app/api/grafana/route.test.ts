@@ -6,7 +6,7 @@ const mockGrafanaFlow = jest.fn();
 jest.mock('@/genkit/grafanaFlow', () => ({
   grafanaFlow: mockGrafanaFlow,
 }));
-import { grafanaFlow } from '@/genkit/grafanaFlow';
+// grafanaFlow is imported via mock, no need for explicit import
 
 // Mock Request and Response if they're not defined in the test environment
 if (typeof Request === 'undefined') {
@@ -52,7 +52,7 @@ jest.mock('@/genkit/grafanaFlow', () => ({
 }));
 
 jest.mock('@genkit-ai/next', () => {
-  return jest.fn((flow) => {
+  return jest.fn(() => {
     // Return a mock function that simulates the behavior of appRoute
     return async (req: Request) => {
       try {
@@ -86,8 +86,8 @@ describe('Grafana API Route', () => {
 
   it('should call appRoute with grafanaFlow', () => {
     // Force the module to be re-evaluated to ensure appRoute is called with grafanaFlow
-    jest.isolateModules(() => {
-      require('./route');
+    jest.isolateModules(async () => {
+      await import('./route');
       expect(appRoute).toHaveBeenCalled();
     });
   });
