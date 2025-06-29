@@ -10,7 +10,7 @@ class MockAbortController {
     aborted: boolean;
     addEventListener: jest.Mock;
     removeEventListener: jest.Mock;
-    eventListeners: Map<string, Function[]>;
+    eventListeners: Map<string, Array<() => void>>;
   };
 
   constructor() {

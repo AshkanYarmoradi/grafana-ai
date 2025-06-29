@@ -37,7 +37,7 @@ jest.mock('./page', () => {
         // Simulate the streamFlow call
         await new Promise(resolve => setTimeout(resolve, 100)); // Small delay to allow test to check loading state
         setStreamedText('Test response chunk 1Test response chunk 2');
-      } catch (error) {
+      } catch {
         setErrorMessage('Sorry, there was an error processing your request. Please try again.');
       } finally {
         setIsLoading(false);
