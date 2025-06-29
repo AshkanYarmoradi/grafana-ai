@@ -128,7 +128,7 @@ export default function Home() {
                                     type="text"
                                     name="question"
                                     id="question"
-                                    placeholder="E.g., How many users are there in the last week?"
+                                    placeholder="Ask a question about your Grafana dashboards..."
                                     className="w-full px-5 py-4 rounded-xl border border-gray-300 dark:border-gray-600
                                     focus:ring-3 focus:ring-indigo-500 focus:border-indigo-500 
                                     bg-white dark:bg-gray-700 text-gray-900 dark:text-white
@@ -156,7 +156,7 @@ export default function Home() {
                             >
                                 {isLoading ? (
                                     <>
-                                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                                        <svg data-testid="loading-spinner" className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
                                              xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
                                                     strokeWidth="4"></circle>
@@ -170,7 +170,7 @@ export default function Home() {
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z"/>
                                         </svg>
-                                        <span className="text-base">Get Answer</span>
+                                        <span className="text-base">Ask</span>
                                     </>
                                 )}
                             </motion.button>

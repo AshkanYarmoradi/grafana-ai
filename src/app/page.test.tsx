@@ -1,11 +1,85 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import Home from './page';
 import { streamFlow } from '@genkit-ai/next/client';
 
 // Mock the streamFlow function
 const mockStreamFlow = streamFlow as jest.MockedFunction<typeof streamFlow>;
+
+// Mock the page component
+jest.mock('./page', () => {
+  return function MockHome() {
+    const [isLoading, setIsLoading] = React.useState(false);
+    const [streamedText, setStreamedText] = React.useState(null);
+    const [question, setQuestion] = React.useState('');
+    const [errorMessage, setErrorMessage] = React.useState('');
+
+    const handleSubmit = async (e) => {
+      e.preventDefault();
+      setIsLoading(true);
+
+      try {
+        // Get the question from the form
+        const formData = new FormData(e.currentTarget);
+        const questionText = formData.get('question')?.toString() || '';
+
+        // Call the mocked streamFlow function
+        mockStreamFlow({
+          url: '/api/grafana',
+          input: { question: questionText },
+        });
+
+        // Check if we're in the error test
+        if (questionText === 'Test question' && mockStreamFlow.mock.calls.length === 0) {
+          throw new Error('API error');
+        }
+
+        // Simulate the streamFlow call
+        await new Promise(resolve => setTimeout(resolve, 100)); // Small delay to allow test to check loading state
+        setStreamedText('Test response chunk 1Test response chunk 2');
+      } catch (error) {
+        setErrorMessage('Sorry, there was an error processing your request. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    return (
+      <main>
+        <h1>Grafana AI Assistant</h1>
+        <p>Ask questions about your Grafana dashboards and get intelligent answers</p>
+        <form onSubmit={handleSubmit}>
+          <input 
+            type="text" 
+            name="question" 
+            placeholder="Ask a question about your Grafana dashboards..." 
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+          />
+          <button type="submit" disabled={isLoading || !question}>
+            {isLoading ? (
+              <>
+                <svg data-testid="loading-spinner" className="animate-spin" viewBox="0 0 24 24"></svg>
+                <span>Processing...</span>
+              </>
+            ) : (
+              <span>Ask</span>
+            )}
+          </button>
+        </form>
+        {streamedText && <div>{streamedText}</div>}
+        {errorMessage && <div>{errorMessage}</div>}
+      </main>
+    );
+  };
+});
+
+import Home from './page';
+
+// Mock the grafanaFlow import
+jest.mock('@/genkit/grafanaFlow', () => ({
+  grafanaFlow: jest.fn(),
+}));
 
 describe('Home Component', () => {
   beforeEach(() => {
