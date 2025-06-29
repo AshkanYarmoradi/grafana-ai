@@ -103,7 +103,8 @@ function simplifyQueryResult(queryResult: unknown): unknown {
             const omittedCount = queryResult.length - 20;
             return queryResult.slice(0, 20).concat([{note: `...${omittedCount} more items omitted...`}]);
         }
-        return queryResult;
+        // Process each item in the array recursively
+        return queryResult.map(item => simplifyQueryResult(item));
     }
 
     // If it's an object, process its properties
@@ -112,14 +113,8 @@ function simplifyQueryResult(queryResult: unknown): unknown {
 
         // Process each property of the object
         for (const [key, value] of Object.entries(queryResult)) {
-            // If a property is an array, apply the same truncation logic
-            if (Array.isArray(value) && value.length > 20) {
-                const omittedCount = value.length - 20;
-                result[key] = value.slice(0, 20).concat([{note: `...${omittedCount} more items omitted...`}]);
-            } else {
-                // Recursively process nested objects
-                result[key] = simplifyQueryResult(value);
-            }
+            // Recursively process all values, including arrays and objects
+            result[key] = simplifyQueryResult(value);
         }
 
         return result;

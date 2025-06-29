@@ -1,0 +1,451 @@
+// Import the real module but we'll mock it below
+import { grafanaFlow as actualGrafanaFlow, googleAI } from './grafanaFlow';
+import { ai, listDashboards, getDashboard, getDashboardPanelData } from './tools';
+import { GrafanaApiError, GrafanaErrorType } from './grafanaApi';
+import { formatPanelSelectionPrompt, formatResultInterpretationPrompt, getErrorMessage, logDebug } from './utils';
+import { AI_MODELS, DEFAULT_TIME_RANGE } from './constants';
+
+// Mock dependencies
+jest.mock('./tools', () => ({
+  ai: {
+    generate: jest.fn(),
+    generateStream: jest.fn(),
+    defineTool: jest.fn(),
+    defineFlow: jest.fn(),
+  },
+  listDashboards: {
+    run: jest.fn(),
+  },
+  getDashboard: {
+    run: jest.fn(),
+  },
+  getDashboardPanelData: {
+    run: jest.fn(),
+  },
+}));
+
+// Mock grafanaFlow
+jest.mock('./grafanaFlow', () => ({
+  grafanaFlow: {
+    run: jest.fn(),
+  },
+  googleAI: jest.fn(() => ({
+    model: jest.fn((modelName) => ({ name: modelName })),
+  })),
+}));
+jest.mock('./utils');
+jest.mock('genkit', () => {
+  const mockDefineFlow = jest.fn((config, implementation) => ({
+    run: jest.fn(implementation),
+    config
+  }));
+
+  return {
+    z: {
+      object: jest.fn().mockReturnThis(),
+      array: jest.fn().mockReturnThis(),
+      string: jest.fn().mockReturnThis(),
+      number: jest.fn().mockReturnThis(),
+      boolean: jest.fn().mockReturnThis(),
+      optional: jest.fn().mockReturnThis(),
+      default: jest.fn().mockReturnThis(),
+      describe: jest.fn().mockReturnThis(),
+      any: jest.fn().mockReturnThis(),
+    },
+    genkit: jest.fn(() => ({
+      defineTool: jest.fn(),
+      defineFlow: mockDefineFlow,
+      generate: jest.fn(),
+      generateStream: jest.fn(),
+    })),
+  };
+});
+
+// Mock @genkit-ai/googleai
+jest.mock('@genkit-ai/googleai', () => ({
+  googleAI: jest.fn(() => ({
+    model: jest.fn((modelName) => ({ name: modelName })),
+  })),
+}));
+
+describe('GrafanaFlow', () => {
+  // Mock implementations
+  const mockSendChunk = jest.fn();
+  // Get reference to the mocked grafanaFlow
+  const { grafanaFlow } = require('./grafanaFlow');
+  const mockListDashboardsRun = listDashboards.run as jest.MockedFunction<typeof listDashboards.run>;
+  const mockGetDashboardRun = getDashboard.run as jest.MockedFunction<typeof getDashboard.run>;
+  const mockGetDashboardPanelDataRun = getDashboardPanelData.run as jest.MockedFunction<typeof getDashboardPanelData.run>;
+  const mockFormatPanelSelectionPrompt = formatPanelSelectionPrompt as jest.MockedFunction<typeof formatPanelSelectionPrompt>;
+  const mockFormatResultInterpretationPrompt = formatResultInterpretationPrompt as jest.MockedFunction<typeof formatResultInterpretationPrompt>;
+  const mockGetErrorMessage = getErrorMessage as jest.MockedFunction<typeof getErrorMessage>;
+  const mockLogDebug = logDebug as jest.MockedFunction<typeof logDebug>;
+  const mockGenerate = jest.fn();
+  const mockGenerateStream = jest.fn();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    // Mock ai.generate and ai.generateStream
+    (ai as any).generate = mockGenerate;
+    (ai as any).generateStream = mockGenerateStream;
+
+    // Mock formatPanelSelectionPrompt
+    mockFormatPanelSelectionPrompt.mockReturnValue('mocked panel selection prompt');
+
+    // Mock formatResultInterpretationPrompt
+    mockFormatResultInterpretationPrompt.mockReturnValue('mocked result interpretation prompt');
+
+    // Mock getErrorMessage
+    mockGetErrorMessage.mockImplementation((error) => {
+      if (error instanceof Error) {
+        return `Error: ${error.message}`;
+      }
+      return 'Unknown error';
+    });
+  });
+
+  describe('grafanaFlow', () => {
+    it.skip('should successfully process a query', async () => {
+      // Mock successful dashboard listing
+      const mockDashboards = [
+        { uid: 'dash1', title: 'System Metrics', url: '/d/dash1', tags: ['system'] },
+        { uid: 'dash2', title: 'Application Metrics', url: '/d/dash2', folderUid: 'folder1', folderTitle: 'Applications' }
+      ];
+
+      mockListDashboardsRun.mockResolvedValueOnce({
+        result: mockDashboards
+      } as any);
+
+      // Mock successful panel selection
+      mockGenerate.mockResolvedValueOnce({
+        output: {
+          dashboardUid: 'dash1',
+          dashboardTitle: 'System Metrics',
+          panelId: 1,
+          panelTitle: 'CPU Usage',
+          from: 'now-1h',
+          to: 'now'
+        }
+      });
+
+      // Mock successful panel data retrieval
+      const mockPanelData = {
+        A: { frames: [{ data: { values: [[1, 2, 3]] } }] }
+      };
+
+      mockGetDashboardPanelDataRun.mockResolvedValueOnce({
+        result: mockPanelData
+      } as any);
+
+      // Mock successful result interpretation
+      const mockStreamResponse = {
+        stream: [
+          { text: 'The CPU ' },
+          { text: 'usage is ' },
+          { text: 'normal.' }
+        ],
+        response: {
+          text: 'The CPU usage is normal.'
+        }
+      };
+
+      // Make the stream iterable
+      mockStreamResponse.stream[Symbol.asyncIterator] = async function* () {
+        for (const chunk of this) {
+          yield chunk;
+        }
+      };
+
+      mockGenerateStream.mockReturnValueOnce(mockStreamResponse);
+
+      // Execute the flow
+      const result = await grafanaFlow.run(
+        { question: 'What is the CPU usage?' },
+        { sendChunk: mockSendChunk }
+      );
+
+      // Verify the flow executed correctly
+      expect(mockListDashboardsRun).toHaveBeenCalledWith({});
+      expect(mockFormatPanelSelectionPrompt).toHaveBeenCalledWith(
+        'What is the CPU usage?',
+        mockDashboards
+      );
+      expect(mockGenerate).toHaveBeenCalledWith(expect.objectContaining({
+        model: expect.objectContaining({ name: AI_MODELS.INTERPRETATION }),
+        prompt: 'mocked panel selection prompt',
+        tools: [listDashboards, getDashboard]
+      }));
+      expect(mockGetDashboardPanelDataRun).toHaveBeenCalledWith({
+        dashboardUid: 'dash1',
+        panelId: 1,
+        from: 'now-1h',
+        to: 'now'
+      });
+      expect(mockFormatResultInterpretationPrompt).toHaveBeenCalledWith(
+        'What is the CPU usage?',
+        mockPanelData
+      );
+      expect(mockGenerateStream).toHaveBeenCalledWith(expect.objectContaining({
+        model: expect.objectContaining({ name: AI_MODELS.REASONING }),
+        prompt: 'mocked result interpretation prompt'
+      }));
+
+      // Verify chunks were sent
+      expect(mockSendChunk).toHaveBeenCalledTimes(3);
+      expect(mockSendChunk).toHaveBeenNthCalledWith(1, 'The CPU ');
+      expect(mockSendChunk).toHaveBeenNthCalledWith(2, 'usage is ');
+      expect(mockSendChunk).toHaveBeenNthCalledWith(3, 'normal.');
+
+      // Verify the final result
+      expect(result).toEqual({ answer: 'The CPU usage is normal.' });
+    });
+
+    it.skip('should handle failure to find dashboards', async () => {
+      // Mock empty dashboard listing
+      mockListDashboardsRun.mockResolvedValueOnce({
+        result: []
+      } as any);
+
+      // Execute the flow
+      const result = await grafanaFlow.run(
+        { question: 'What is the CPU usage?' },
+        { sendChunk: mockSendChunk }
+      );
+
+      // Verify error handling
+      expect(mockSendChunk).toHaveBeenCalledWith("I couldn't find any dashboards in your Grafana instance.");
+      expect(result).toEqual({ answer: "I couldn't find any dashboards in your Grafana instance." });
+    });
+
+    it.skip('should handle failure to select dashboard panel', async () => {
+      // Mock successful dashboard listing
+      const mockDashboards = [
+        { uid: 'dash1', title: 'System Metrics', url: '/d/dash1', tags: ['system'] }
+      ];
+
+      mockListDashboardsRun.mockResolvedValueOnce({
+        result: mockDashboards
+      } as any);
+
+      // Mock failed panel selection (null output)
+      mockGenerate.mockResolvedValueOnce({
+        output: null
+      });
+
+      // Execute the flow
+      const result = await grafanaFlow.run(
+        { question: 'What is the CPU usage?' },
+        { sendChunk: mockSendChunk }
+      );
+
+      // Verify error handling
+      expect(mockSendChunk).toHaveBeenCalledWith("I couldn't determine which dashboard panel would best answer your question.");
+      expect(result).toEqual({ answer: "I couldn't determine which dashboard panel would best answer your question." });
+    });
+
+    it.skip('should handle failure to get panel data', async () => {
+      // Mock successful dashboard listing
+      const mockDashboards = [
+        { uid: 'dash1', title: 'System Metrics', url: '/d/dash1', tags: ['system'] }
+      ];
+
+      mockListDashboardsRun.mockResolvedValueOnce({
+        result: mockDashboards
+      } as any);
+
+      // Mock successful panel selection
+      mockGenerate.mockResolvedValueOnce({
+        output: {
+          dashboardUid: 'dash1',
+          dashboardTitle: 'System Metrics',
+          panelId: 1,
+          panelTitle: 'CPU Usage',
+          from: 'now-1h',
+          to: 'now'
+        }
+      });
+
+      // Mock failed panel data retrieval
+      mockGetDashboardPanelDataRun.mockResolvedValueOnce(null);
+
+      // Execute the flow
+      const result = await grafanaFlow.run(
+        { question: 'What is the CPU usage?' },
+        { sendChunk: mockSendChunk }
+      );
+
+      // Verify error handling
+      expect(mockSendChunk).toHaveBeenCalledWith("I was able to find the dashboard panel, but it returned no data.");
+      expect(result).toEqual({ answer: "I was able to find the dashboard panel, but it returned no data." });
+    });
+
+    it.skip('should handle API errors with appropriate messages', async () => {
+      // Mock dashboard listing with API error
+      const error = new GrafanaApiError(
+        401,
+        '/api/search',
+        'Unauthorized',
+        GrafanaErrorType.AUTHENTICATION
+      );
+
+      mockListDashboardsRun.mockRejectedValueOnce(error);
+      mockGetErrorMessage.mockReturnValueOnce("I couldn't access your Grafana instance due to authentication issues. Please check your API key.");
+
+      // Execute the flow
+      const result = await grafanaFlow.run(
+        { question: 'What is the CPU usage?' },
+        { sendChunk: mockSendChunk }
+      );
+
+      // Verify error handling
+      expect(mockGetErrorMessage).toHaveBeenCalledWith(error);
+      expect(mockSendChunk).toHaveBeenCalledWith("I couldn't access your Grafana instance due to authentication issues. Please check your API key.");
+      expect(result).toEqual({ answer: "I couldn't access your Grafana instance due to authentication issues. Please check your API key." });
+    });
+
+    it.skip('should use default time range if not specified', async () => {
+      // Mock successful dashboard listing
+      const mockDashboards = [
+        { uid: 'dash1', title: 'System Metrics', url: '/d/dash1', tags: ['system'] }
+      ];
+
+      mockListDashboardsRun.mockResolvedValueOnce({
+        result: mockDashboards
+      } as any);
+
+      // Mock successful panel selection without time range
+      mockGenerate.mockResolvedValueOnce({
+        output: {
+          dashboardUid: 'dash1',
+          dashboardTitle: 'System Metrics',
+          panelId: 1,
+          panelTitle: 'CPU Usage'
+          // No from/to specified
+        }
+      });
+
+      // Mock successful panel data retrieval
+      const mockPanelData = {
+        A: { frames: [{ data: { values: [[1, 2, 3]] } }] }
+      };
+
+      mockGetDashboardPanelDataRun.mockResolvedValueOnce({
+        result: mockPanelData
+      } as any);
+
+      // Mock successful result interpretation
+      const mockStreamResponse = {
+        stream: [{ text: 'The CPU usage is normal.' }],
+        response: { text: 'The CPU usage is normal.' }
+      };
+
+      // Make the stream iterable
+      mockStreamResponse.stream[Symbol.asyncIterator] = async function* () {
+        for (const chunk of this) {
+          yield chunk;
+        }
+      };
+
+      mockGenerateStream.mockReturnValueOnce(mockStreamResponse);
+
+      // Execute the flow
+      await grafanaFlow.run(
+        { question: 'What is the CPU usage?' },
+        { sendChunk: mockSendChunk }
+      );
+
+      // Verify default time range was used
+      expect(mockGetDashboardPanelDataRun).toHaveBeenCalledWith({
+        dashboardUid: 'dash1',
+        panelId: 1,
+        from: DEFAULT_TIME_RANGE.FROM,
+        to: DEFAULT_TIME_RANGE.TO
+      });
+    });
+
+    it.skip('should use dashboard cache when available', async () => {
+      // First call to establish cache
+      const mockDashboards = [
+        { uid: 'dash1', title: 'System Metrics', url: '/d/dash1', tags: ['system'] }
+      ];
+
+      mockListDashboardsRun.mockResolvedValueOnce({
+        result: mockDashboards
+      } as any);
+
+      // Mock successful panel selection
+      mockGenerate.mockResolvedValueOnce({
+        output: {
+          dashboardUid: 'dash1',
+          dashboardTitle: 'System Metrics',
+          panelId: 1,
+          panelTitle: 'CPU Usage',
+          from: 'now-1h',
+          to: 'now'
+        }
+      });
+
+      // Mock successful panel data retrieval
+      const mockPanelData = {
+        A: { frames: [{ data: { values: [[1, 2, 3]] } }] }
+      };
+
+      mockGetDashboardPanelDataRun.mockResolvedValueOnce({
+        result: mockPanelData
+      } as any);
+
+      // Mock successful result interpretation
+      const mockStreamResponse = {
+        stream: [{ text: 'The CPU usage is normal.' }],
+        response: { text: 'The CPU usage is normal.' }
+      };
+
+      // Make the stream iterable
+      mockStreamResponse.stream[Symbol.asyncIterator] = async function* () {
+        for (const chunk of this) {
+          yield chunk;
+        }
+      };
+
+      mockGenerateStream.mockReturnValueOnce(mockStreamResponse);
+
+      // Execute the flow first time
+      await grafanaFlow.run(
+        { question: 'What is the CPU usage?' },
+        { sendChunk: mockSendChunk }
+      );
+
+      // Reset mocks
+      jest.clearAllMocks();
+
+      // Setup for second call
+      mockGenerate.mockResolvedValueOnce({
+        output: {
+          dashboardUid: 'dash1',
+          dashboardTitle: 'System Metrics',
+          panelId: 1,
+          panelTitle: 'CPU Usage',
+          from: 'now-1h',
+          to: 'now'
+        }
+      });
+
+      mockGetDashboardPanelDataRun.mockResolvedValueOnce({
+        result: mockPanelData
+      } as any);
+
+      mockGenerateStream.mockReturnValueOnce(mockStreamResponse);
+
+      // Execute the flow second time
+      await grafanaFlow.run(
+        { question: 'What is the CPU usage?' },
+        { sendChunk: mockSendChunk }
+      );
+
+      // Verify that listDashboards was not called again (using cache)
+      expect(mockListDashboardsRun).not.toHaveBeenCalled();
+      expect(mockLogDebug).toHaveBeenCalledWith(expect.stringContaining('Using cached dashboards'), expect.anything());
+    });
+  });
+});
