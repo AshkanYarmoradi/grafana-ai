@@ -14,8 +14,8 @@ export const grafanaFlow = ai.defineFlow(
     },
     async ({ question }, { sendChunk }) => {
         const { stream, response } = ai.generateStream({
-            model: googleAI.model('gemini-2.5-pro'),
-            prompt: `Invent a menu item for a ${question} themed restaurant.`,
+            model: googleAI.model('gemini-2.5-flash'),
+            prompt: `${question}`,
         });
 
         for await (const chunk of stream) {
