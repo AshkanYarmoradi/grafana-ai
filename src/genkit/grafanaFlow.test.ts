@@ -68,18 +68,22 @@ describe('grafanaFlow', () => {
 
       // Mock ai.generateStream for result interpretation
       const mockStreamResponse = {
-        stream: {
-          // Use a more compatible approach for async iteration
-          async *[Symbol.asyncIterator]() {
-            yield { text: 'The HTTP ' };
-            yield { text: 'request rate ' };
-            yield { text: 'shows an increase ' };
-            yield { text: 'over the 5-minute period.' };
-          }
-        },
+        stream: [
+          { text: 'The HTTP ' },
+          { text: 'request rate ' },
+          { text: 'shows an increase ' },
+          { text: 'over the 5-minute period.' }
+        ],
         response: Promise.resolve({
           text: 'The HTTP request rate shows an increase over the 5-minute period.'
         })
+      };
+
+      // Make the stream iterable
+      mockStreamResponse.stream[Symbol.asyncIterator] = async function* () {
+        for (const chunk of this) {
+          yield chunk;
+        }
       };
 
       (ai.generateStream as jest.Mock).mockReturnValueOnce(mockStreamResponse);
@@ -127,9 +131,8 @@ describe('grafanaFlow', () => {
       );
 
       // Verify error handling
-      expect(result.answer).toContain("Error:");
-      // In the actual implementation, ai.generate might be called during initialization
-      // so we don't check if it was called or not
+      expect(result.answer).toContain('No datasources found');
+      expect(ai.generate).not.toHaveBeenCalled();
       expect(ai.generateStream).not.toHaveBeenCalled();
       expect(queryDatasource.run).not.toHaveBeenCalled();
     });
@@ -180,7 +183,7 @@ describe('grafanaFlow', () => {
       );
 
       // Verify error handling
-      expect(result.answer).toContain('I encountered an error while trying to query your Grafana instance');
+      expect(result.answer).toContain('Error: Query execution error');
       expect(ai.generateStream).not.toHaveBeenCalled();
     });
 
@@ -191,12 +194,12 @@ describe('grafanaFlow', () => {
       });
 
       // Mock successful query generation
-      (ai.generate as jest.Mock).mockResolvedValueOnce({
-        output: {
-          uid: 'ds1',
+      (ai.generateText as jest.Mock).mockResolvedValueOnce({
+        text: JSON.stringify({
+          datasource: 'ds1',
           query: 'rate(http_requests_total[5m])',
-          type: 'prometheus'
-        }
+          explanation: 'This query gets the rate of HTTP requests over 5 minutes'
+        })
       });
 
       // Mock successful query execution
@@ -209,9 +212,7 @@ describe('grafanaFlow', () => {
       });
 
       // Mock error during result interpretation
-      (ai.generateStream as jest.Mock).mockImplementationOnce(() => {
-        throw new Error('Interpretation error');
-      });
+      (ai.generateText as jest.Mock).mockRejectedValueOnce(new Error('Interpretation error'));
 
       // Call the flow
       const result = await grafanaFlow(
@@ -220,7 +221,7 @@ describe('grafanaFlow', () => {
       );
 
       // Verify error handling
-      expect(result.answer).toContain('Error:');
+      expect(result.answer).toContain('Error: Interpretation error');
     });
   });
 });

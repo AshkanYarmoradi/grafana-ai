@@ -1,9 +1,6 @@
-// Mock the grafanaFlow module
-const mockGrafanaFlow = jest.fn();
-jest.mock('@/genkit/grafanaFlow', () => ({
-  grafanaFlow: mockGrafanaFlow,
-}));
-// grafanaFlow is imported via mock, no need for explicit import
+// Mock the dependencies first, before importing the modules
+import { grafanaFlow } from '@/genkit/grafanaFlow';
+import appRoute from '@genkit-ai/next';
 
 // Mock Request and Response if they're not defined in the test environment
 if (typeof Request === 'undefined') {
@@ -49,26 +46,21 @@ jest.mock('@/genkit/grafanaFlow', () => ({
 }));
 
 jest.mock('@genkit-ai/next', () => {
-  return jest.fn(() => {
+  return jest.fn((flow) => {
     // Return a mock function that simulates the behavior of appRoute
     return async (req: Request) => {
-      try {
-        // Extract the request body
-        const body = await req.json();
+      // Extract the request body
+      const body = await req.json();
 
-        // Use the mocked grafanaFlow instead of calling the actual flow
-        // This avoids issues with the actual implementation
-        const result = await mockGrafanaFlow(body, {
-          sendChunk: jest.fn(),
-        });
+      // Call the flow function with the request body
+      const result = await flow(body, {
+        sendChunk: jest.fn(),
+      });
 
-        // Return a Response with the result
-        return new Response(JSON.stringify(result), {
-          headers: { 'Content-Type': 'application/json' },
-        });
-      } catch (error) {
-        throw error;
-      }
+      // Return a Response with the result
+      return new Response(JSON.stringify(result), {
+        headers: { 'Content-Type': 'application/json' },
+      });
     };
   });
 });
@@ -81,17 +73,18 @@ describe('Grafana API Route', () => {
     jest.clearAllMocks();
   });
 
-  // Skip this test as it's causing worker process exceptions
-  it.skip('should call appRoute with grafanaFlow', () => {
-    // This test was causing worker process exceptions
-    // The functionality is indirectly tested by the other tests
-    expect(true).toBe(true);
+  it('should call appRoute with grafanaFlow', () => {
+    // Force the module to be re-evaluated to ensure appRoute is called with grafanaFlow
+    jest.isolateModules(() => {
+      require('./route');
+      expect(appRoute).toHaveBeenCalledWith(grafanaFlow);
+    });
   });
 
   it('should process a request and return a response', async () => {
     // Mock the grafanaFlow implementation for this test
     const mockAnswer = { answer: 'This is a test answer' };
-    mockGrafanaFlow.mockResolvedValueOnce(mockAnswer);
+    (grafanaFlow as jest.Mock).mockResolvedValueOnce(mockAnswer);
 
     // Create a mock request
     const request = new Request('http://localhost:3000/api/grafana', {
@@ -110,8 +103,8 @@ describe('Grafana API Route', () => {
     const responseData = await response.json();
     expect(responseData).toEqual(mockAnswer);
 
-    // Verify mockGrafanaFlow was called with the correct parameters
-    expect(mockGrafanaFlow).toHaveBeenCalledWith(
+    // Verify grafanaFlow was called with the correct parameters
+    expect(grafanaFlow).toHaveBeenCalledWith(
       { question: 'What is the CPU usage?' },
       expect.objectContaining({
         sendChunk: expect.any(Function),
@@ -121,7 +114,7 @@ describe('Grafana API Route', () => {
 
   it('should handle errors from grafanaFlow', async () => {
     // Mock grafanaFlow to throw an error
-    mockGrafanaFlow.mockRejectedValueOnce(new Error('Test error'));
+    (grafanaFlow as jest.Mock).mockRejectedValueOnce(new Error('Test error'));
 
     // Create a mock request
     const request = new Request('http://localhost:3000/api/grafana', {
