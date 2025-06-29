@@ -3,15 +3,16 @@
 import {useState} from 'react';
 import {streamFlow} from '@genkit-ai/next/client';
 import {grafanaFlow} from "@/genkit/grafanaFlow";
+import ReactMarkdown from 'react-markdown';
 
 export default function Home() {
     const [isLoading, setIsLoading] = useState(false);
-    const [streamedText, setStreamedText] = useState<string>('');
+    const [streamedText, setStreamedText] = useState<string | null>(null);
 
     async function streamAnswer(formData: FormData) {
         const question = formData.get('question')?.toString() ?? '';
         setIsLoading(true);
-        setStreamedText('');
+        setStreamedText(null);
 
         try {
             // Streaming approach
@@ -22,7 +23,7 @@ export default function Home() {
 
             // Process the stream chunks as they arrive
             for await (const chunk of result.stream) {
-                setStreamedText((prev) => prev + chunk);
+                setStreamedText((prev) => (prev === null ? chunk : prev + chunk));
             }
         } catch (error) {
             console.error('Error streaming answer:', error);
@@ -91,26 +92,27 @@ export default function Home() {
                     </form>
                 </div>
 
-                {(streamedText) && (
-                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
-                        {streamedText && (
-                            <div className="mb-6">
-                                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3 flex items-center">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-indigo-500"
-                                         fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                              d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                                    </svg>
-                                    Answer:
-                                </h3>
-                                <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 overflow-auto max-h-60">
-                                    <pre
-                                        className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{streamedText}</pre>
-                                </div>
+                {/* Always render the container, but conditionally show content */}
+                <div className={`bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 ${!streamedText ? 'hidden' : ''}`}>
+                    <div className="mb-6">
+                        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-indigo-500"
+                                 fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                      d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                            </svg>
+                            Answer:
+                        </h3>
+                        <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 overflow-auto max-h-60">
+                            {/* Always render ReactMarkdown to maintain consistent hook count */}
+                            <div className="text-sm text-gray-700 dark:text-gray-300 prose dark:prose-invert max-w-none">
+                                <ReactMarkdown>
+                                    {streamedText || ''}
+                                </ReactMarkdown>
                             </div>
-                        )}
+                        </div>
                     </div>
-                )}
+                </div>
             </div>
         </main>
     );
