@@ -1,50 +1,47 @@
-import {AI_MODELS, DEFAULT_TIME_RANGE, PROMPT_TEMPLATES} from './constants';
+import {DEFAULT_TIME_RANGE, AI_MODELS, PROMPT_TEMPLATES} from './constants';
 
 describe('Constants', () => {
-    describe('DEFAULT_TIME_RANGE', () => {
-        it('should have the correct structure and values', () => {
-            expect(DEFAULT_TIME_RANGE).toEqual({
-                FROM: 'now-1h',
-                TO: 'now',
-            });
-        });
+  describe('DEFAULT_TIME_RANGE', () => {
+    it('should define default time range values', () => {
+      expect(DEFAULT_TIME_RANGE).toBeDefined();
+      expect(DEFAULT_TIME_RANGE.FROM).toBe('now-1h');
+      expect(DEFAULT_TIME_RANGE.TO).toBe('now');
+    });
+  });
+
+  describe('AI_MODELS', () => {
+    it('should define AI model configurations', () => {
+      expect(AI_MODELS).toBeDefined();
+      expect(AI_MODELS.REASONING).toBe('gemini-2.5-pro');
+      expect(AI_MODELS.INTERPRETATION).toBe('gemini-2.5-flash');
+    });
+  });
+
+  describe('PROMPT_TEMPLATES', () => {
+    it('should define panel selection prompt template', () => {
+      expect(PROMPT_TEMPLATES.PANEL_SELECTION).toBeDefined();
+      expect(typeof PROMPT_TEMPLATES.PANEL_SELECTION).toBe('string');
+      expect(PROMPT_TEMPLATES.PANEL_SELECTION).toContain('{{question}}');
+      expect(PROMPT_TEMPLATES.PANEL_SELECTION).toContain('{{currentTime}}');
+      expect(PROMPT_TEMPLATES.PANEL_SELECTION).toContain('{{dashboards}}');
     });
 
-    describe('AI_MODELS', () => {
-        it('should have the correct structure and values', () => {
-            expect(AI_MODELS).toEqual({
-                REASONING: 'gemini-2.5-pro',
-                INTERPRETATION: 'gemini-1.5-flash',
-            });
-        });
+    it('should define result interpretation prompt template', () => {
+      expect(PROMPT_TEMPLATES.RESULT_INTERPRETATION).toBeDefined();
+      expect(typeof PROMPT_TEMPLATES.RESULT_INTERPRETATION).toBe('string');
+      expect(PROMPT_TEMPLATES.RESULT_INTERPRETATION).toContain('{{question}}');
+      expect(PROMPT_TEMPLATES.RESULT_INTERPRETATION).toContain('{{panelData}}');
     });
 
-    describe('PROMPT_TEMPLATES', () => {
-        it('should have the correct structure', () => {
-            expect(PROMPT_TEMPLATES).toHaveProperty('QUERY_GENERATION');
-            expect(PROMPT_TEMPLATES).toHaveProperty('RESULT_INTERPRETATION');
-            expect(PROMPT_TEMPLATES).toHaveProperty('ERROR_MESSAGES');
-        });
-
-        it('should have the correct error messages', () => {
-            expect(PROMPT_TEMPLATES.ERROR_MESSAGES).toHaveProperty('NO_DATASOURCES');
-            expect(PROMPT_TEMPLATES.ERROR_MESSAGES).toHaveProperty('QUERY_GENERATION_FAILED');
-            expect(PROMPT_TEMPLATES.ERROR_MESSAGES).toHaveProperty('NO_DATA');
-            expect(PROMPT_TEMPLATES.ERROR_MESSAGES).toHaveProperty('GENERAL_ERROR');
-            expect(PROMPT_TEMPLATES.ERROR_MESSAGES).toHaveProperty('AUTH_ERROR');
-            expect(PROMPT_TEMPLATES.ERROR_MESSAGES).toHaveProperty('NOT_FOUND_ERROR');
-            expect(PROMPT_TEMPLATES.ERROR_MESSAGES).toHaveProperty('SERVER_ERROR');
-        });
-
-        it('should have the correct query generation template', () => {
-            expect(PROMPT_TEMPLATES.QUERY_GENERATION).toContain('{{question}}');
-            expect(PROMPT_TEMPLATES.QUERY_GENERATION).toContain('{{currentTime}}');
-            expect(PROMPT_TEMPLATES.QUERY_GENERATION).toContain('{{datasources}}');
-        });
-
-        it('should have the correct result interpretation template', () => {
-            expect(PROMPT_TEMPLATES.RESULT_INTERPRETATION).toContain('{{question}}');
-            expect(PROMPT_TEMPLATES.RESULT_INTERPRETATION).toContain('{{queryResult}}');
-        });
+    it('should define error messages', () => {
+      expect(PROMPT_TEMPLATES.ERROR_MESSAGES).toBeDefined();
+      expect(PROMPT_TEMPLATES.ERROR_MESSAGES.NO_DATASOURCES).toBeDefined();
+      expect(PROMPT_TEMPLATES.ERROR_MESSAGES.QUERY_GENERATION_FAILED).toBeDefined();
+      expect(PROMPT_TEMPLATES.ERROR_MESSAGES.NO_DATA).toBeDefined();
+      expect(PROMPT_TEMPLATES.ERROR_MESSAGES.GENERAL_ERROR).toBeDefined();
+      expect(PROMPT_TEMPLATES.ERROR_MESSAGES.AUTH_ERROR).toBeDefined();
+      expect(PROMPT_TEMPLATES.ERROR_MESSAGES.NOT_FOUND_ERROR).toBeDefined();
+      expect(PROMPT_TEMPLATES.ERROR_MESSAGES.SERVER_ERROR).toBeDefined();
     });
+  });
 });

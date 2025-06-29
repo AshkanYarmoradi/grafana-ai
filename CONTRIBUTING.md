@@ -91,6 +91,8 @@ DEBUG_LOGGING=true
 - Use meaningful variable and function names
 - Add comments for complex logic
 - Use async/await for asynchronous code
+- Implement caching for expensive operations where appropriate
+- Optimize data structures to reduce token usage with AI models
 
 ### React Components
 
@@ -117,6 +119,9 @@ DEBUG_LOGGING=true
 - Update documentation when changing functionality
 - Use clear, concise language
 - Include examples where appropriate
+- Keep README.md and DEVELOPMENT.md in sync with code changes
+- Document performance optimizations and AI model usage
+- Update architecture diagrams and flow descriptions when modifying the application flow
 
 ## Review Process
 

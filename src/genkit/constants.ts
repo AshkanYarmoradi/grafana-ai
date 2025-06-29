@@ -19,7 +19,7 @@ export const AI_MODELS = {
     REASONING: 'gemini-2.5-pro',
 
     // Model for data interpretation (using a more cost-effective model)
-    INTERPRETATION: 'gemini-1.5-flash',
+    INTERPRETATION: 'gemini-2.5-flash',
 };
 
 /**
@@ -27,28 +27,25 @@ export const AI_MODELS = {
  */
 export const PROMPT_TEMPLATES = {
     /**
-     * Template for generating a query based on user question and available datasources
+     * Template for selecting a dashboard panel based on user question and available dashboards
      */
-    QUERY_GENERATION: `You are an expert in observability and query languages.
+    PANEL_SELECTION: `You are an expert in Grafana dashboards and observability.
 Question: "{{question}}"
 Current time: {{currentTime}}
-Available datasources: {{datasources}}
+Available dashboards: {{dashboards}}
 
 Task:
-1. Choose the most appropriate datasource
-2. Write a native query for the datasource type:
-   - 'influxdb': InfluxQL/Flux
-   - 'prometheus': PromQL
-   - 'loki': LogQL
-   - SQL types: SQL
-3. Include time range if specified in question
-4. Return ONLY a JSON with: uid, type, query, from (optional), to (optional)`,
+1. Choose the most appropriate dashboard based on the question
+2. Get the dashboard details to find relevant panels
+3. Select the most appropriate panel that would answer the question
+4. Include time range if specified in question
+5. Return ONLY a JSON with: dashboardUid, panelId, from (optional), to (optional)`,
 
     /**
-     * Template for interpreting query results
+     * Template for interpreting dashboard panel data
      */
     RESULT_INTERPRETATION: `Question: "{{question}}"
-Data: {{queryResult}}
+Dashboard Panel Data: {{panelData}}
 
 Provide a concise, human-readable interpretation of this data to answer the question.
 Focus on insights rather than raw numbers (e.g., "Average CPU: 85%" instead of just "85%").`,

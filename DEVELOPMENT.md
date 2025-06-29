@@ -43,10 +43,10 @@ The UI is styled with Tailwind CSS and uses Framer Motion for animations.
 
 The AI functionality is implemented using GenKit and Google's Gemini models:
 
-- **grafanaFlow.ts**: Defines the main AI flow that processes user questions
-- **tools.ts**: Defines tools for interacting with Grafana (listDatasources, queryDatasource)
+- **grafanaFlow.ts**: Defines the main AI flow that processes user questions, with dashboard caching
+- **tools.ts**: Defines tools for interacting with Grafana (listDashboards, getDashboard, getDashboardPanelData)
 - **grafanaApi.ts**: Implements the Grafana API client with error handling and retries
-- **constants.ts**: Contains configuration constants and prompt templates
+- **constants.ts**: Contains configuration constants, AI model selection, and prompt templates
 - **utils.ts**: Utility functions for formatting prompts and handling errors
 
 ### 3. API Routes (src/app/api)
@@ -89,18 +89,24 @@ DEBUG_LOGGING=true
 
 The main AI flow in `grafanaFlow.ts` follows these steps:
 
-1. **Discover Datasources**: Fetches available datasources from Grafana
-2. **Generate Query**: Uses AI to generate an appropriate query based on the user's question
-3. **Execute Query**: Runs the generated query against the selected datasource
-4. **Interpret Results**: Uses AI to interpret the query results and provide a human-readable answer
+1. **Discover Dashboards**: Fetches available dashboards from Grafana (with caching for performance)
+2. **Select Dashboard Panel**: Uses AI to select the most appropriate dashboard and panel based on the user's question
+3. **Get Panel Data**: Retrieves data from the selected dashboard panel
+4. **Interpret Results**: Uses AI to interpret the panel data and provide a human-readable answer
+
+The flow uses different AI models for different tasks:
+- Gemini 2.5 Pro for complex reasoning tasks
+- Gemini 2.5 Flash for data interpretation (more cost-effective)
 
 ### Prompt Templates
 
 The AI uses carefully crafted prompt templates (defined in `constants.ts`) to:
 
-1. Generate appropriate queries based on the datasource type
-2. Interpret query results in a human-readable way
+1. Select the most appropriate dashboard panel based on the user's question
+2. Interpret panel data in a human-readable way
 3. Handle error cases with helpful messages
+
+These templates are optimized to reduce token usage while maintaining high-quality responses.
 
 ## Testing
 
@@ -127,24 +133,30 @@ If you encounter authentication errors when connecting to Grafana:
 
 ### 2. AI Model Errors
 
-If the AI model fails to generate appropriate queries:
+If the AI model fails to select appropriate dashboard panels or interpret results:
 
 - Check that your Google AI API key is valid and has access to the Gemini models
 - Verify that the prompt templates in `constants.ts` are correctly formatted
+- Ensure you're using the correct model names as defined in `AI_MODELS` in constants.ts
 
 ### 3. Grafana API Errors
 
-If you encounter errors when querying Grafana:
+If you encounter errors when accessing Grafana dashboards or panels:
 
 - Verify that your Grafana instance is accessible
-- Check that the datasource you're trying to query exists and is properly configured
-- Ensure that the generated query is valid for the selected datasource type
+- Check that the dashboards exist and are properly configured
+- Ensure that the panels you're trying to access exist and contain data
+- Check the error handling in grafanaApi.ts for specific error messages
 
 ## Performance Considerations
 
 - The application uses streaming responses to provide real-time feedback to users
-- AI model calls can be expensive, so consider implementing caching for common queries
-- Large query results may impact performance, so consider limiting the amount of data returned
+- Dashboard information is cached (with a 5-minute TTL) to reduce API calls to Grafana
+- Different AI models are used for different tasks to optimize cost and performance:
+  - Gemini 2.5 Pro for complex reasoning tasks
+  - Gemini 2.5 Flash for data interpretation (more cost-effective)
+- Panel data is simplified before being sent to the AI to reduce token usage
+- Large result sets are truncated to improve performance and reduce costs
 
 ## Security Best Practices
 

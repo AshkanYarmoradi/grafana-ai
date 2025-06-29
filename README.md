@@ -9,7 +9,7 @@
 [![Next.js](https://img.shields.io/badge/Next.js-15.3.4-blue.svg)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-19.1.0-blue.svg)](https://reactjs.org/)
 [![GenKit](https://img.shields.io/badge/GenKit-1.14.0-purple.svg)](https://genkit.ai/)
-[![Google AI](https://img.shields.io/badge/Google%20AI-Gemini%202.5%20Pro-green.svg)](https://ai.google.dev/)
+[![Google AI](https://img.shields.io/badge/Google%20AI-Gemini%202.5%20Pro%20%7C%20Flash-green.svg)](https://ai.google.dev/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ## 🌟 Overview
@@ -24,6 +24,7 @@ Just ask your question in plain English, and let Grafana AI Assistant do the wor
 ## ✨ Features
 
 - **Natural Language Interface**: Ask questions about your metrics in plain English
+- **Dashboard Discovery**: Automatically finds and selects the most relevant dashboards and panels
 - **Multi-Datasource Support**: Works with various Grafana datasources:
     - Prometheus
     - InfluxDB
@@ -33,6 +34,7 @@ Just ask your question in plain English, and let Grafana AI Assistant do the wor
 - **Intelligent Query Generation**: Automatically generates appropriate queries based on your question
 - **Human-Readable Answers**: Interprets query results and provides clear, concise explanations
 - **Streaming Responses**: Delivers answers in real-time as they're generated
+- **Performance Optimizations**: Implements caching and efficient data processing
 - **Error Handling**: Provides helpful feedback when issues occur
 - **Modern UI**: Beautiful, responsive interface with animations and dark mode support
 - **Secure**: Connects to your Grafana instance using secure API keys
@@ -60,6 +62,11 @@ GOOGLE_API_KEY=your-google-ai-api-key
 # Optional: Enable debug logging
 DEBUG_LOGGING=false
 ```
+
+The application will use these environment variables to:
+- Connect to your Grafana instance
+- Authenticate with the Google AI API
+- Enable detailed logging when troubleshooting
 
 ### Installation
 
@@ -106,17 +113,23 @@ Grafana AI Assistant is built with a modern tech stack:
 
 - **Frontend**: Next.js 15 with React 19, using the App Router
 - **UI Components**: Custom components with Tailwind CSS and Framer Motion
-- **AI Integration**: GenKit AI framework with Google's Gemini 2.5 Pro models
+- **AI Integration**: GenKit AI framework with Google's Gemini models
+  - Gemini 2.5 Pro for complex reasoning tasks
+  - Gemini 2.5 Flash for data interpretation (more cost-effective)
 - **API**: Next.js API routes with streaming response support
+- **Performance Optimizations**:
+  - Dashboard caching to reduce API calls (5-minute TTL)
+  - Optimized prompts to reduce token usage
+  - Simplified data structures for efficient AI processing
 
 The application follows this workflow:
 
 1. User submits a question through the UI
 2. The question is sent to the `/api/grafana` endpoint
 3. The `grafanaFlow` processes the question:
-    - Discovers available Grafana datasources
-    - Generates an appropriate query using AI
-    - Executes the query against the selected datasource
+    - Discovers available Grafana dashboards (using cache when available)
+    - Selects the most appropriate dashboard panel using AI
+    - Retrieves data from the selected panel
     - Interprets the results using AI
 4. The response is streamed back to the UI in real-time
 5. The UI displays the formatted answer to the user

@@ -2,30 +2,32 @@
  * Grafana AI Flow
  *
  * This module implements the main flow for processing Grafana queries using AI.
- * It discovers datasources, generates appropriate queries, executes them,
+ * It discovers dashboards, retrieves dashboard details, gets panel data,
  * and provides a human-readable interpretation of the results.
  *
+ * Based on: https://last9.io/blog/getting-started-with-the-grafana-api/
+ *
  * Optimized for cost efficiency with:
- * - Datasource caching to reduce API calls
+ * - Dashboard caching to reduce API calls
  * - Model selection based on task complexity
  * - Optimized prompts to reduce token usage
  */
 import {z} from 'genkit';
 import {googleAI} from '@genkit-ai/googleai';
 import {GrafanaApiError} from './grafanaApi';
-import {AI_MODELS, DEFAULT_TIME_RANGE, PROMPT_TEMPLATES} from './constants';
-import {formatQueryGenerationPrompt, formatResultInterpretationPrompt, getErrorMessage, logDebug} from './utils';
-import {ai, listDatasources, queryDatasource} from './tools';
+import {AI_MODELS, DEFAULT_TIME_RANGE} from './constants';
+import {formatPanelSelectionPrompt, formatResultInterpretationPrompt, getErrorMessage, logDebug} from './utils';
+import {ai, listDashboards, getDashboard, getDashboardPanelData} from './tools';
 
-// Cache for datasources to avoid redundant API calls
-let datasourcesCache: Array<{ uid: string; name: string; type: string }> | null = null;
-let datasourcesCacheExpiry: number = 0;
+// Cache for dashboards to avoid redundant API calls
+let dashboardsCache: Array<{ uid: string; title: string; url: string; folderUid?: string; folderTitle?: string; tags?: string[] }> | null = null;
+let dashboardsCacheExpiry: number = 0;
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
  * Main flow for processing Grafana queries using AI.
- * This flow discovers datasources, generates appropriate queries,
- * executes them, and provides a human-readable interpretation of the results.
+ * This flow discovers dashboards, selects appropriate panels,
+ * retrieves panel data, and provides a human-readable interpretation of the results.
  */
 export const grafanaFlow = ai.defineFlow(
     {
@@ -44,26 +46,26 @@ export const grafanaFlow = ai.defineFlow(
         logDebug('Starting Grafana AI flow', {question});
 
         try {
-            // Step 1: Discover available datasources
-            const datasourcesResult = await discoverDatasources(sendChunk);
-            if (!datasourcesResult.success) {
-                return {answer: datasourcesResult.message};
+            // Step 1: Discover available dashboards
+            const dashboardsResult = await discoverDashboards(sendChunk);
+            if (!dashboardsResult.success) {
+                return {answer: dashboardsResult.message};
             }
 
-            // Step 2: Generate a query for the appropriate datasource
-            const queryGenerationResult = await generateQuery(question, datasourcesResult.datasources!, sendChunk);
-            if (!queryGenerationResult.success) {
-                return {answer: queryGenerationResult.message};
+            // Step 2: Select the appropriate dashboard panel
+            const panelSelectionResult = await selectDashboardPanel(question, dashboardsResult.dashboards!, sendChunk);
+            if (!panelSelectionResult.success) {
+                return {answer: panelSelectionResult.message};
             }
 
-            // Step 3: Execute the query against the selected datasource
-            const queryExecutionResult = await executeQuery(queryGenerationResult.queryParams!, sendChunk);
-            if (!queryExecutionResult.success) {
-                return {answer: queryExecutionResult.message};
+            // Step 3: Get data from the selected dashboard panel
+            const panelDataResult = await getPanelData(panelSelectionResult.panelParams!, sendChunk);
+            if (!panelDataResult.success) {
+                return {answer: panelDataResult.message};
             }
 
             // Step 4: Interpret the results
-            return await interpretResults(question, queryExecutionResult.data, sendChunk);
+            return await interpretResults(question, panelDataResult.data, sendChunk);
         } catch (error) {
             logDebug('Unexpected error in Grafana AI flow', error);
             const errorMessage = getErrorMessage(error);
@@ -74,60 +76,60 @@ export const grafanaFlow = ai.defineFlow(
 );
 
 /**
- * Discovers available datasources in Grafana
+ * Discovers available dashboards in Grafana
  * Uses caching to avoid redundant API calls
  *
  * @param sendChunk - Function to send streaming chunks to the client
- * @returns Object containing success status, message, and datasources if successful
+ * @returns Object containing success status, message, and dashboards if successful
  */
-async function discoverDatasources(
+async function discoverDashboards(
     sendChunk: (chunk: string) => void
 ): Promise<{
     success: boolean;
     message: string;
-    datasources?: Array<{ uid: string; name: string; type: string }>
+    dashboards?: Array<{ uid: string; title: string; url: string; folderUid?: string; folderTitle?: string; tags?: string[] }>
 }> {
     try {
         // Check if we have a valid cache
         const now = Date.now();
-        if (datasourcesCache && now < datasourcesCacheExpiry) {
-            logDebug(`Using cached datasources (${datasourcesCache.length} items)`);
+        if (dashboardsCache && now < dashboardsCacheExpiry) {
+            logDebug(`Using cached dashboards (${dashboardsCache.length} items)`);
 
-            if (datasourcesCache.length === 0) {
-                const message = PROMPT_TEMPLATES.ERROR_MESSAGES.NO_DATASOURCES;
+            if (dashboardsCache.length === 0) {
+                const message = "I couldn't find any dashboards in your Grafana instance.";
                 sendChunk(message);
                 return {success: false, message};
             }
 
             return {
                 success: true,
-                message: 'Datasources found (cached)',
-                datasources: datasourcesCache
+                message: 'Dashboards found (cached)',
+                dashboards: dashboardsCache
             };
         }
 
         // Cache miss or expired, fetch from API
-        const datasourcesResponse = await listDatasources.run({});
-        const availableDatasources = datasourcesResponse?.result || [];
+        const dashboardsResponse = await listDashboards.run({});
+        const availableDashboards = dashboardsResponse?.result || [];
 
         // Update cache
-        datasourcesCache = availableDatasources;
-        datasourcesCacheExpiry = now + CACHE_TTL_MS;
+        dashboardsCache = availableDashboards;
+        dashboardsCacheExpiry = now + CACHE_TTL_MS;
 
-        if (availableDatasources.length === 0) {
-            const message = PROMPT_TEMPLATES.ERROR_MESSAGES.NO_DATASOURCES;
+        if (availableDashboards.length === 0) {
+            const message = "I couldn't find any dashboards in your Grafana instance.";
             sendChunk(message);
             return {success: false, message};
         }
 
-        logDebug(`Found ${availableDatasources.length} available datasources`, availableDatasources);
+        logDebug(`Found ${availableDashboards.length} available dashboards`, availableDashboards);
         return {
             success: true,
-            message: 'Datasources found',
-            datasources: availableDatasources
+            message: 'Dashboards found',
+            dashboards: availableDashboards
         };
     } catch (error) {
-        logDebug('Error discovering datasources', error);
+        logDebug('Error discovering dashboards', error);
         const errorMessage = getErrorMessage(error);
         sendChunk(errorMessage);
         return {success: false, message: errorMessage};
@@ -135,49 +137,46 @@ async function discoverDatasources(
 }
 
 /**
- * Generates a query for the appropriate datasource based on the user's question
- * Uses the high-capability model for this complex reasoning task
+ * Selects the appropriate dashboard panel based on the user's question
  *
  * @param question - The user's question
- * @param datasources - Available Grafana datasources
+ * @param dashboards - Available Grafana dashboards
  * @param sendChunk - Function to send streaming chunks to the client
- * @returns Object containing success status, message, and query parameters if successful
+ * @returns Object containing success status, message, and panel parameters if successful
  */
-async function generateQuery(
+async function selectDashboardPanel(
     question: string,
-    datasources: Array<{ uid: string; name: string; type: string }>,
+    dashboards: Array<{ uid: string; title: string; url: string; folderUid?: string; folderTitle?: string; tags?: string[] }>,
     sendChunk: (chunk: string) => void
 ): Promise<{
     success: boolean;
     message: string;
-    queryParams?: {
-        datasourceUid: string;
-        datasourceType: string;
-        rawQuery: string;
+    panelParams?: {
+        dashboardUid: string;
+        panelId: number;
         from: string;
         to: string;
     }
 }> {
     try {
-        // Format the prompt with the user's question and available datasources
-        // The formatting function now simplifies datasources to reduce token usage
-        const prompt = formatQueryGenerationPrompt(question, datasources);
+        // Format the prompt with the user's question and available dashboards
+        const prompt = formatPanelSelectionPrompt(question, dashboards);
 
-        logDebug('Generating query using model', AI_MODELS.REASONING);
+        logDebug('Selecting dashboard panel using model', AI_MODELS.INTERPRETATION);
 
-        // Generate a query using the AI model
-        // Using the high-capability model for complex query generation
-        const generateResponse = await ai.generate({
-            model: googleAI.model(AI_MODELS.REASONING),
+        // First, have the AI select the most appropriate dashboard
+        const dashboardSelectionResponse = await ai.generate({
+            model: googleAI.model(AI_MODELS.INTERPRETATION),
             prompt,
-            tools: [listDatasources, queryDatasource],
+            tools: [listDashboards, getDashboard],
             // Set a reasonable maximum output tokens to control costs
             maxOutputTokens: 1500,
             output: {
                 schema: z.object({
-                    uid: z.string().describe('The uid of the selected datasource.'),
-                    query: z.string().describe('The generated native query string.'),
-                    type: z.string().describe("The type of the datasource (e.g., 'influxdb', 'prometheus', 'postgres')."),
+                    dashboardUid: z.string().describe('The uid of the selected dashboard.'),
+                    dashboardTitle: z.string().optional().describe('The title of the selected dashboard.'),
+                    panelId: z.number().describe('The ID of the selected panel within the dashboard.'),
+                    panelTitle: z.string().optional().describe('The title of the selected panel.'),
                     from: z.string().optional().describe("The start of the time range if specified in the user's question."),
                     to: z.string().optional().describe("The end of the time range if specified in the user's question."),
                 }),
@@ -185,34 +184,38 @@ async function generateQuery(
         });
 
         // Handle potential null output
-        if (!generateResponse.output) {
-            const message = PROMPT_TEMPLATES.ERROR_MESSAGES.QUERY_GENERATION_FAILED;
+        if (!dashboardSelectionResponse.output) {
+            const message = "I couldn't determine which dashboard panel would best answer your question.";
             sendChunk(message);
             return {success: false, message};
         }
 
-        // Extract the query parameters
-        const {uid, query, type, from = DEFAULT_TIME_RANGE.FROM, to = DEFAULT_TIME_RANGE.TO} = generateResponse.output;
+        // Extract the dashboard and panel parameters
+        const {
+            dashboardUid, 
+            dashboardTitle,
+            panelId, 
+            panelTitle,
+            from = DEFAULT_TIME_RANGE.FROM, 
+            to = DEFAULT_TIME_RANGE.TO
+        } = dashboardSelectionResponse.output;
 
-        logDebug(`Generated query for datasource '${uid}'`, {
-            datasourceType: type,
-            query,
+        logDebug(`Selected panel ${panelId} (${panelTitle || 'Unnamed'}) from dashboard '${dashboardUid}' (${dashboardTitle || 'Unnamed'})`, {
             timeRange: {from, to}
         });
 
         return {
             success: true,
-            message: 'Query generated successfully',
-            queryParams: {
-                datasourceUid: uid,
-                datasourceType: type,
-                rawQuery: query,
+            message: 'Dashboard panel selected successfully',
+            panelParams: {
+                dashboardUid,
+                panelId,
                 from,
                 to
             }
         };
     } catch (error) {
-        logDebug('Error generating query', error);
+        logDebug('Error selecting dashboard panel', error);
         const errorMessage = getErrorMessage(error);
         sendChunk(errorMessage);
         return {success: false, message: errorMessage};
@@ -220,17 +223,16 @@ async function generateQuery(
 }
 
 /**
- * Executes a query against the selected datasource
+ * Gets data from the selected dashboard panel
  *
- * @param queryParams - Parameters for the query
+ * @param panelParams - Parameters for the panel
  * @param sendChunk - Function to send streaming chunks to the client
- * @returns Object containing success status, message, and query results if successful
+ * @returns Object containing success status, message, and panel data if successful
  */
-async function executeQuery(
-    queryParams: {
-        datasourceUid: string;
-        datasourceType: string;
-        rawQuery: string;
+async function getPanelData(
+    panelParams: {
+        dashboardUid: string;
+        panelId: number;
         from: string;
         to: string;
     },
@@ -241,31 +243,31 @@ async function executeQuery(
     data?: unknown
 }> {
     try {
-        const queryResult = await queryDatasource.run(queryParams);
+        const panelData = await getDashboardPanelData.run(panelParams);
 
-        if (!queryResult) {
-            const message = PROMPT_TEMPLATES.ERROR_MESSAGES.NO_DATA;
+        if (!panelData) {
+            const message = "I was able to find the dashboard panel, but it returned no data.";
             sendChunk(message);
             return {success: false, message};
         }
 
-        logDebug('Query executed successfully', queryResult);
-        return {success: true, message: 'Query executed successfully', data: queryResult};
+        logDebug('Panel data retrieved successfully', panelData);
+        return {success: true, message: 'Panel data retrieved successfully', data: panelData};
     } catch (error) {
-        logDebug('Error executing query', error);
+        logDebug('Error getting panel data', error);
 
-        let errorMessage = PROMPT_TEMPLATES.ERROR_MESSAGES.GENERAL_ERROR;
+        let errorMessage = "I encountered an error while trying to get data from the dashboard panel.";
 
         if (error instanceof GrafanaApiError) {
             logDebug(`Grafana API Error (Status: ${error.statusCode}, Endpoint: ${error.endpoint})`, error.message);
 
             // Provide more specific error messages based on status code
             if (error.statusCode === 401 || error.statusCode === 403) {
-                errorMessage = PROMPT_TEMPLATES.ERROR_MESSAGES.AUTH_ERROR;
+                errorMessage = "I couldn't access your Grafana instance due to authentication issues. Please check your API key.";
             } else if (error.statusCode === 404) {
-                errorMessage = PROMPT_TEMPLATES.ERROR_MESSAGES.NOT_FOUND_ERROR;
+                errorMessage = "The requested dashboard or panel was not found in your Grafana instance.";
             } else if (error.statusCode >= 500) {
-                errorMessage = PROMPT_TEMPLATES.ERROR_MESSAGES.SERVER_ERROR;
+                errorMessage = "Your Grafana instance is experiencing server issues. Please try again later.";
             }
         }
 
@@ -275,30 +277,29 @@ async function executeQuery(
 }
 
 /**
- * Interprets the query results and provides a human-readable answer
- * Uses a more cost-effective model for this simpler task
+ * Interprets the dashboard panel data and provides a human-readable answer
  *
  * @param question - The original user question
- * @param queryResult - The raw query result from Grafana
+ * @param panelData - The data from the dashboard panel
  * @param sendChunk - Function to send streaming chunks to the client
  * @returns Object containing the final answer
  */
 async function interpretResults(
     question: string,
-    queryResult: unknown,
+    panelData: unknown,
     sendChunk: (chunk: string) => void
 ): Promise<{ answer: string }> {
     try {
-        // Format the prompt with the original question and query results
-        // The formatting function now simplifies the query result to reduce token usage
-        const prompt = formatResultInterpretationPrompt(question, queryResult);
+        // Format the prompt with the original question and panel data
+        // The formatting function simplifies the data to reduce token usage
+        const prompt = formatResultInterpretationPrompt(question, panelData);
 
-        logDebug('Interpreting results using model', AI_MODELS.INTERPRETATION);
+        logDebug('Interpreting panel data using model', AI_MODELS.REASONING);
 
         // Generate a streaming response to interpret the results
         // Using the more cost-effective model for interpretation
         const streamResponse = ai.generateStream({
-            model: googleAI.model(AI_MODELS.INTERPRETATION),
+            model: googleAI.model(AI_MODELS.REASONING),
             prompt,
             // Set a reasonable maximum output length to control costs
             maxOutputTokens: 1000,
@@ -315,7 +316,7 @@ async function interpretResults(
         const finalResponse = await streamResponse.response;
         return {answer: finalResponse.text || fullResponse};
     } catch (error) {
-        logDebug('Error interpreting results', error);
+        logDebug('Error interpreting panel data', error);
         const errorMessage = getErrorMessage(error);
         sendChunk(errorMessage);
         return {answer: errorMessage};

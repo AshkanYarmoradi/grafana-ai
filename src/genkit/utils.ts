@@ -62,29 +62,26 @@ export function formatTemplate(
  * @param datasources - Full datasource information
  * @returns Simplified datasource information with only essential fields
  */
-function simplifyDatasources(datasources: DatasourceInfo[]): Pick<DatasourceInfo, 'uid' | 'name' | 'type'>[] {
+export function simplifyDatasources(datasources: DatasourceInfo[]): Pick<DatasourceInfo, 'uid' | 'name' | 'type'>[] {
     return datasources.map(({uid, name, type}) => ({uid, name, type}));
 }
 
 /**
- * Formats the query generation prompt with the provided data
+ * Formats the panel selection prompt with the provided data
  *
  * @param question - The user's question
- * @param datasources - Available Grafana datasources
- * @returns Formatted prompt for query generation
+ * @param dashboards - Available Grafana dashboards
+ * @returns Formatted prompt for panel selection
  */
-export function formatQueryGenerationPrompt(
+export function formatPanelSelectionPrompt(
     question: string,
-    datasources: DatasourceInfo[]
+    dashboards: Array<{ uid: string; title: string; url: string; folderUid?: string; folderTitle?: string; tags?: string[] }>
 ): string {
-    // Simplify datasources to reduce token usage
-    const simplifiedDatasources = simplifyDatasources(datasources);
-
-    return formatTemplate(PROMPT_TEMPLATES.QUERY_GENERATION, {
+    return formatTemplate(PROMPT_TEMPLATES.PANEL_SELECTION, {
         question,
         currentTime: new Date().toISOString(),
         // Use compact JSON formatting to reduce token usage
-        datasources: JSON.stringify(simplifiedDatasources),
+        dashboards: JSON.stringify(dashboards),
     });
 }
 
@@ -106,7 +103,8 @@ function simplifyQueryResult(queryResult: unknown): unknown {
             const omittedCount = queryResult.length - 20;
             return queryResult.slice(0, 20).concat([{note: `...${omittedCount} more items omitted...`}]);
         }
-        return queryResult;
+        // Process each item in the array recursively
+        return queryResult.map(item => simplifyQueryResult(item));
     }
 
     // If it's an object, process its properties
@@ -115,14 +113,8 @@ function simplifyQueryResult(queryResult: unknown): unknown {
 
         // Process each property of the object
         for (const [key, value] of Object.entries(queryResult)) {
-            // If a property is an array, apply the same truncation logic
-            if (Array.isArray(value) && value.length > 20) {
-                const omittedCount = value.length - 20;
-                result[key] = value.slice(0, 20).concat([{note: `...${omittedCount} more items omitted...`}]);
-            } else {
-                // Recursively process nested objects
-                result[key] = simplifyQueryResult(value);
-            }
+            // Recursively process all values, including arrays and objects
+            result[key] = simplifyQueryResult(value);
         }
 
         return result;
@@ -135,20 +127,20 @@ function simplifyQueryResult(queryResult: unknown): unknown {
  * Formats the result interpretation prompt with the provided data
  *
  * @param question - The original user question
- * @param queryResult - The raw query result from Grafana
+ * @param panelData - The data from the dashboard panel
  * @returns Formatted prompt for result interpretation
  */
 export function formatResultInterpretationPrompt(
     question: string,
-    queryResult: unknown
+    panelData: unknown
 ): string {
-    // Simplify query result to reduce token usage
-    const simplifiedResult = simplifyQueryResult(queryResult);
+    // Simplify panel data to reduce token usage
+    const simplifiedResult = simplifyQueryResult(panelData);
 
     return formatTemplate(PROMPT_TEMPLATES.RESULT_INTERPRETATION, {
         question,
         // Use compact JSON formatting to reduce token usage
-        queryResult: JSON.stringify(simplifiedResult),
+        panelData: JSON.stringify(simplifiedResult),
     });
 }
 
