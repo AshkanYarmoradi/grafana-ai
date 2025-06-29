@@ -62,7 +62,7 @@ export function formatTemplate(
  * @param datasources - Full datasource information
  * @returns Simplified datasource information with only essential fields
  */
-function simplifyDatasources(datasources: DatasourceInfo[]): Pick<DatasourceInfo, 'uid' | 'name' | 'type'>[] {
+export function simplifyDatasources(datasources: DatasourceInfo[]): Pick<DatasourceInfo, 'uid' | 'name' | 'type'>[] {
     return datasources.map(({uid, name, type}) => ({uid, name, type}));
 }
 

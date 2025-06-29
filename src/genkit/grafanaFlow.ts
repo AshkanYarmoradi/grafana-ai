@@ -15,7 +15,7 @@
 import {z} from 'genkit';
 import {googleAI} from '@genkit-ai/googleai';
 import {GrafanaApiError} from './grafanaApi';
-import {AI_MODELS, DEFAULT_TIME_RANGE, PROMPT_TEMPLATES} from './constants';
+import {AI_MODELS, DEFAULT_TIME_RANGE} from './constants';
 import {formatPanelSelectionPrompt, formatResultInterpretationPrompt, getErrorMessage, logDebug} from './utils';
 import {ai, listDashboards, getDashboard, getDashboardPanelData} from './tools';
 
@@ -23,10 +23,6 @@ import {ai, listDashboards, getDashboard, getDashboardPanelData} from './tools';
 let dashboardsCache: Array<{ uid: string; title: string; url: string; folderUid?: string; folderTitle?: string; tags?: string[] }> | null = null;
 let dashboardsCacheExpiry: number = 0;
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-
-// Cache for dashboard details to avoid redundant API calls
-const dashboardDetailsCache = new Map<string, any>();
-let dashboardDetailsCacheExpiry: number = 0;
 
 /**
  * Main flow for processing Grafana queries using AI.

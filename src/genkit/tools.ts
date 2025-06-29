@@ -412,22 +412,18 @@ export const getDashboardPanelData = ai.defineTool(
             // Build queries for each target
             const queries = targets.map((target, index) => {
                 // Determine datasource from target or panel
-                let datasource = target.datasource || panel.datasource;
+                const datasource = target.datasource || panel.datasource;
                 let datasourceUid: string;
-                let datasourceType: string;
 
                 // Handle different datasource formats
                 if (typeof datasource === 'string') {
                     // Legacy format - assume default datasource
                     datasourceUid = 'default';
-                    datasourceType = 'default';
                 } else if (datasource && typeof datasource === 'object') {
                     datasourceUid = datasource.uid;
-                    datasourceType = datasource.type;
                 } else {
                     // Fallback to default
                     datasourceUid = 'default';
-                    datasourceType = 'default';
                 }
 
                 // Determine query based on datasource type
