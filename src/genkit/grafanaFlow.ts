@@ -4,6 +4,11 @@
  * This module implements the main flow for processing Grafana queries using AI.
  * It discovers datasources, generates appropriate queries, executes them,
  * and provides a human-readable interpretation of the results.
+ * 
+ * Optimized for cost efficiency with:
+ * - Datasource caching to reduce API calls
+ * - Model selection based on task complexity
+ * - Optimized prompts to reduce token usage
  */
 import { z } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
@@ -16,6 +21,11 @@ import {
   logDebug 
 } from './utils';
 import { ai, listDatasources, queryDatasource } from './tools';
+
+// Cache for datasources to avoid redundant API calls
+let datasourcesCache: Array<{ uid: string; name: string; type: string }> | null = null;
+let datasourcesCacheExpiry: number = 0;
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
  * Main flow for processing Grafana queries using AI.
@@ -70,6 +80,7 @@ export const grafanaFlow = ai.defineFlow(
 
 /**
  * Discovers available datasources in Grafana
+ * Uses caching to avoid redundant API calls
  * 
  * @param sendChunk - Function to send streaming chunks to the client
  * @returns Object containing success status, message, and datasources if successful
@@ -82,8 +93,31 @@ async function discoverDatasources(
   datasources?: Array<{ uid: string; name: string; type: string }> 
 }> {
   try {
+    // Check if we have a valid cache
+    const now = Date.now();
+    if (datasourcesCache && now < datasourcesCacheExpiry) {
+      logDebug(`Using cached datasources (${datasourcesCache.length} items)`);
+
+      if (datasourcesCache.length === 0) {
+        const message = PROMPT_TEMPLATES.ERROR_MESSAGES.NO_DATASOURCES;
+        sendChunk(message);
+        return { success: false, message };
+      }
+
+      return { 
+        success: true, 
+        message: 'Datasources found (cached)', 
+        datasources: datasourcesCache 
+      };
+    }
+
+    // Cache miss or expired, fetch from API
     const datasourcesResponse = await listDatasources.run({});
     const availableDatasources = datasourcesResponse?.result || [];
+
+    // Update cache
+    datasourcesCache = availableDatasources;
+    datasourcesCacheExpiry = now + CACHE_TTL_MS;
 
     if (availableDatasources.length === 0) {
       const message = PROMPT_TEMPLATES.ERROR_MESSAGES.NO_DATASOURCES;
@@ -107,6 +141,7 @@ async function discoverDatasources(
 
 /**
  * Generates a query for the appropriate datasource based on the user's question
+ * Uses the high-capability model for this complex reasoning task
  * 
  * @param question - The user's question
  * @param datasources - Available Grafana datasources
@@ -130,13 +165,19 @@ async function generateQuery(
 }> {
   try {
     // Format the prompt with the user's question and available datasources
+    // The formatting function now simplifies datasources to reduce token usage
     const prompt = formatQueryGenerationPrompt(question, datasources);
 
+    logDebug('Generating query using model', AI_MODELS.REASONING);
+
     // Generate a query using the AI model
+    // Using the high-capability model for complex query generation
     const generateResponse = await ai.generate({
       model: googleAI.model(AI_MODELS.REASONING),
       prompt,
       tools: [listDatasources, queryDatasource],
+      // Set a reasonable maximum output tokens to control costs
+      maxOutputTokens: 1500,
       output: {
         schema: z.object({
           uid: z.string().describe('The uid of the selected datasource.'),
@@ -240,6 +281,7 @@ async function executeQuery(
 
 /**
  * Interprets the query results and provides a human-readable answer
+ * Uses a more cost-effective model for this simpler task
  * 
  * @param question - The original user question
  * @param queryResult - The raw query result from Grafana
@@ -253,12 +295,18 @@ async function interpretResults(
 ): Promise<{ answer: string }> {
   try {
     // Format the prompt with the original question and query results
+    // The formatting function now simplifies the query result to reduce token usage
     const prompt = formatResultInterpretationPrompt(question, queryResult);
 
+    logDebug('Interpreting results using model', AI_MODELS.INTERPRETATION);
+
     // Generate a streaming response to interpret the results
+    // Using the more cost-effective model for interpretation
     const streamResponse = ai.generateStream({
       model: googleAI.model(AI_MODELS.INTERPRETATION),
       prompt,
+      // Set a reasonable maximum output length to control costs
+      maxOutputTokens: 1000,
     });
 
     // Stream the response chunks to the client
