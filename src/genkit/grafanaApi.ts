@@ -132,7 +132,7 @@ function validateEnvironment(): {
  * @param data - Additional data to log (will be sanitized)
  * @param enableLogging - Whether logging is enabled
  */
-function safeLog(message: string, data: Record<string, any> = {}, enableLogging = false): void {
+function safeLog(message: string, data: Record<string, unknown> = {}, enableLogging = false): void {
   if (!enableLogging) return;
 
   // Create a sanitized copy of the data to avoid logging sensitive information
