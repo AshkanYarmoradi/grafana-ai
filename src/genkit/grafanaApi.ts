@@ -299,11 +299,20 @@ export async function grafanaApiRequest<T>(
           );
         }
 
-        // Parse and return the response
-        const data = await response.json();
+        // Parse and return the response based on content type
+        let data: unknown;
+        const contentType = response.headers.get('content-type') || '';
+
+        if (contentType.includes('application/json')) {
+          // Parse as JSON
+          data = await response.json();
+        } else {
+          // Parse as text for non-JSON responses
+          data = await response.text();
+        }
 
         // Log success if logging is enabled
-        safeLog('Request successful', { endpoint: normalizedEndpoint }, enableLogging);
+        safeLog('Request successful', { endpoint: normalizedEndpoint, contentType }, enableLogging);
 
         return data as T;
       } catch (error) {
