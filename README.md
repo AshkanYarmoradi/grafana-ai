@@ -5,6 +5,7 @@
   <p><em>Intelligent natural language interface for your Grafana dashboards</em></p>
 </div>
 
+[![CI](https://github.com/AshkanYarmoradi/grafana-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/AshkanYarmoradi/grafana-ai/actions/workflows/ci.yml)
 [![Next.js](https://img.shields.io/badge/Next.js-15.3.4-blue.svg)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-19.1.0-blue.svg)](https://reactjs.org/)
 [![GenKit](https://img.shields.io/badge/GenKit-1.14.0-purple.svg)](https://genkit.ai/)
