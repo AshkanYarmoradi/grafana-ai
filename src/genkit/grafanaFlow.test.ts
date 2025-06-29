@@ -6,7 +6,9 @@ import { DEFAULT_TIME_RANGE } from './constants';
 jest.mock('./tools', () => ({
   ai: {
     defineFlow: jest.fn((config, fn) => fn),
-    generateText: jest.fn(),
+    generate: jest.fn(),
+    generateStream: jest.fn(),
+    generateText: jest.fn(), // Keep for backward compatibility with tests
   },
   listDatasources: {
     run: jest.fn(),
@@ -27,11 +29,11 @@ jest.mock('./utils', () => ({
 describe('grafanaFlow', () => {
   // Mock for the sendChunk function
   const mockSendChunk = jest.fn();
-  
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
-  
+
   describe('Main flow', () => {
     it('should process a question successfully through all steps', async () => {
       // Mock successful responses for each step
@@ -39,21 +41,21 @@ describe('grafanaFlow', () => {
         { uid: 'ds1', name: 'Prometheus', type: 'prometheus' },
         { uid: 'ds2', name: 'Loki', type: 'loki' }
       ];
-      
+
       // Mock listDatasources.run to return datasources
       (listDatasources.run as jest.Mock).mockResolvedValue({
         result: mockDatasources
       });
-      
-      // Mock ai.generateText to return a query
-      (ai.generateText as jest.Mock).mockResolvedValueOnce({
-        text: JSON.stringify({
-          datasource: 'ds1',
+
+      // Mock ai.generate to return a query
+      (ai.generate as jest.Mock).mockResolvedValueOnce({
+        output: {
+          uid: 'ds1',
           query: 'rate(http_requests_total[5m])',
-          explanation: 'This query gets the rate of HTTP requests over 5 minutes'
-        })
+          type: 'prometheus'
+        }
       });
-      
+
       // Mock queryDatasource.run to return query results
       (queryDatasource.run as jest.Mock).mockResolvedValue({
         result: {
@@ -63,111 +65,134 @@ describe('grafanaFlow', () => {
           ]
         }
       });
-      
-      // Mock ai.generateText for result interpretation
-      (ai.generateText as jest.Mock).mockResolvedValueOnce({
-        text: 'The HTTP request rate shows an increase over the 5-minute period.'
-      });
-      
+
+      // Mock ai.generateStream for result interpretation
+      const mockStreamResponse = {
+        stream: [
+          { text: 'The HTTP ' },
+          { text: 'request rate ' },
+          { text: 'shows an increase ' },
+          { text: 'over the 5-minute period.' }
+        ],
+        response: Promise.resolve({
+          text: 'The HTTP request rate shows an increase over the 5-minute period.'
+        })
+      };
+
+      // Make the stream iterable
+      mockStreamResponse.stream[Symbol.asyncIterator] = async function* () {
+        for (const chunk of this) {
+          yield chunk;
+        }
+      };
+
+      (ai.generateStream as jest.Mock).mockReturnValueOnce(mockStreamResponse);
+
       // Call the flow
       const result = await grafanaFlow(
         { question: 'What is the HTTP request rate?' },
         { sendChunk: mockSendChunk }
       );
-      
+
       // Verify the flow executed all steps
       expect(listDatasources.run).toHaveBeenCalledTimes(1);
-      expect(ai.generateText).toHaveBeenCalledTimes(2); // Once for query generation, once for interpretation
+      expect(ai.generate).toHaveBeenCalledTimes(1); // For query generation
+      expect(ai.generateStream).toHaveBeenCalledTimes(1); // For result interpretation
       expect(queryDatasource.run).toHaveBeenCalledTimes(1);
-      
+
       // Verify the query parameters
       expect(queryDatasource.run).toHaveBeenCalledWith({
         datasourceUid: 'ds1',
-        query: 'rate(http_requests_total[5m])',
-        timeRange: DEFAULT_TIME_RANGE
+        datasourceType: 'prometheus',
+        rawQuery: 'rate(http_requests_total[5m])',
+        from: DEFAULT_TIME_RANGE.FROM,
+        to: DEFAULT_TIME_RANGE.TO
       });
-      
+
       // Verify the final result
       expect(result).toEqual({
         answer: 'The HTTP request rate shows an increase over the 5-minute period.'
       });
-      
+
       // Verify chunks were sent
       expect(mockSendChunk).toHaveBeenCalled();
     });
-    
+
     it('should handle error when no datasources are available', async () => {
       // Mock empty datasources response
       (listDatasources.run as jest.Mock).mockResolvedValue({
         result: []
       });
-      
+
       // Call the flow
       const result = await grafanaFlow(
         { question: 'What is the HTTP request rate?' },
         { sendChunk: mockSendChunk }
       );
-      
+
       // Verify error handling
       expect(result.answer).toContain('No datasources found');
-      expect(ai.generateText).not.toHaveBeenCalled();
+      expect(ai.generate).not.toHaveBeenCalled();
+      expect(ai.generateStream).not.toHaveBeenCalled();
       expect(queryDatasource.run).not.toHaveBeenCalled();
     });
-    
+
     it('should handle error during query generation', async () => {
       // Mock successful datasources response
       (listDatasources.run as jest.Mock).mockResolvedValue({
         result: [{ uid: 'ds1', name: 'Prometheus', type: 'prometheus' }]
       });
-      
+
       // Mock error during query generation
-      (ai.generateText as jest.Mock).mockRejectedValueOnce(new Error('AI model error'));
-      
+      (ai.generate as jest.Mock).mockRejectedValueOnce(new Error('AI model error'));
+
       // Call the flow
       const result = await grafanaFlow(
         { question: 'What is the HTTP request rate?' },
         { sendChunk: mockSendChunk }
       );
-      
+
       // Verify error handling
       expect(result.answer).toContain('Error: AI model error');
       expect(queryDatasource.run).not.toHaveBeenCalled();
+      expect(ai.generateStream).not.toHaveBeenCalled();
     });
-    
+
     it('should handle error during query execution', async () => {
       // Mock successful datasources response
       (listDatasources.run as jest.Mock).mockResolvedValue({
         result: [{ uid: 'ds1', name: 'Prometheus', type: 'prometheus' }]
       });
-      
+
       // Mock successful query generation
-      (ai.generateText as jest.Mock).mockResolvedValueOnce({
-        text: JSON.stringify({
-          datasource: 'ds1',
+      (ai.generate as jest.Mock).mockResolvedValueOnce({
+        output: {
+          uid: 'ds1',
           query: 'rate(http_requests_total[5m])',
-          explanation: 'This query gets the rate of HTTP requests over 5 minutes'
-        })
+          type: 'prometheus'
+        }
       });
-      
+
       // Mock error during query execution
       (queryDatasource.run as jest.Mock).mockRejectedValueOnce(new Error('Query execution error'));
-      
+
       // Call the flow
       const result = await grafanaFlow(
         { question: 'What is the HTTP request rate?' },
         { sendChunk: mockSendChunk }
       );
-      
+
       // Verify error handling
       expect(result.answer).toContain('Error: Query execution error');
+      expect(ai.generateStream).not.toHaveBeenCalled();
     });
-    
+
     it('should handle error during result interpretation', async () => {
       // Mock successful datasources response
       (listDatasources.run as jest.Mock).mockResolvedValue({
         result: [{ uid: 'ds1', name: 'Prometheus', type: 'prometheus' }]
       });
-      
+
       // Mock successful query generation
       (ai.generateText as jest.Mock).mockResolvedValueOnce({
         text: JSON.stringify({
@@ -176,7 +201,7 @@ describe('grafanaFlow', () => {
           explanation: 'This query gets the rate of HTTP requests over 5 minutes'
         })
       });
-      
+
       // Mock successful query execution
       (queryDatasource.run as jest.Mock).mockResolvedValue({
         result: {
@@ -185,16 +210,16 @@ describe('grafanaFlow', () => {
           ]
         }
       });
-      
+
       // Mock error during result interpretation
       (ai.generateText as jest.Mock).mockRejectedValueOnce(new Error('Interpretation error'));
-      
+
       // Call the flow
       const result = await grafanaFlow(
         { question: 'What is the HTTP request rate?' },
         { sendChunk: mockSendChunk }
       );
-      
+
       // Verify error handling
       expect(result.answer).toContain('Error: Interpretation error');
     });
