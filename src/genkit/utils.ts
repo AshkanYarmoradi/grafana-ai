@@ -67,24 +67,21 @@ function simplifyDatasources(datasources: DatasourceInfo[]): Pick<DatasourceInfo
 }
 
 /**
- * Formats the query generation prompt with the provided data
+ * Formats the panel selection prompt with the provided data
  *
  * @param question - The user's question
- * @param datasources - Available Grafana datasources
- * @returns Formatted prompt for query generation
+ * @param dashboards - Available Grafana dashboards
+ * @returns Formatted prompt for panel selection
  */
-export function formatQueryGenerationPrompt(
+export function formatPanelSelectionPrompt(
     question: string,
-    datasources: DatasourceInfo[]
+    dashboards: Array<{ uid: string; title: string; url: string; folderUid?: string; folderTitle?: string; tags?: string[] }>
 ): string {
-    // Simplify datasources to reduce token usage
-    const simplifiedDatasources = simplifyDatasources(datasources);
-
-    return formatTemplate(PROMPT_TEMPLATES.QUERY_GENERATION, {
+    return formatTemplate(PROMPT_TEMPLATES.PANEL_SELECTION, {
         question,
         currentTime: new Date().toISOString(),
         // Use compact JSON formatting to reduce token usage
-        datasources: JSON.stringify(simplifiedDatasources),
+        dashboards: JSON.stringify(dashboards),
     });
 }
 
@@ -135,20 +132,20 @@ function simplifyQueryResult(queryResult: unknown): unknown {
  * Formats the result interpretation prompt with the provided data
  *
  * @param question - The original user question
- * @param queryResult - The raw query result from Grafana
+ * @param panelData - The data from the dashboard panel
  * @returns Formatted prompt for result interpretation
  */
 export function formatResultInterpretationPrompt(
     question: string,
-    queryResult: unknown
+    panelData: unknown
 ): string {
-    // Simplify query result to reduce token usage
-    const simplifiedResult = simplifyQueryResult(queryResult);
+    // Simplify panel data to reduce token usage
+    const simplifiedResult = simplifyQueryResult(panelData);
 
     return formatTemplate(PROMPT_TEMPLATES.RESULT_INTERPRETATION, {
         question,
         // Use compact JSON formatting to reduce token usage
-        queryResult: JSON.stringify(simplifiedResult),
+        panelData: JSON.stringify(simplifiedResult),
     });
 }
 
