@@ -119,7 +119,8 @@ describe('Home Component', () => {
   it('shows loading state when form is submitted', async () => {
     // Setup mock implementation for streamFlow
     const mockAsyncIterator = {
-      [Symbol.asyncIterator]: async function* () {
+      // Use a more compatible approach for async iteration
+      async *[Symbol.asyncIterator]() {
         yield 'Test response chunk 1';
         yield 'Test response chunk 2';
       }
@@ -187,7 +188,8 @@ describe('Home Component', () => {
   it('preserves user input after submission', async () => {
     // Setup mock implementation for streamFlow
     const mockAsyncIterator = {
-      [Symbol.asyncIterator]: async function* () {
+      // Use a more compatible approach for async iteration
+      async *[Symbol.asyncIterator]() {
         yield 'Test response';
       }
     };

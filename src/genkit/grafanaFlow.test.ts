@@ -69,7 +69,8 @@ describe('grafanaFlow', () => {
       // Mock ai.generateStream for result interpretation
       const mockStreamResponse = {
         stream: {
-          [Symbol.asyncIterator]: async function* () {
+          // Use a more compatible approach for async iteration
+          async *[Symbol.asyncIterator]() {
             yield { text: 'The HTTP ' };
             yield { text: 'request rate ' };
             yield { text: 'shows an increase ' };

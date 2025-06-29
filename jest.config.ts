@@ -42,6 +42,9 @@ const customJestConfig = {
       statements: 70,
     },
   },
+  // Add worker configuration to handle async iterators better
+  workerIdleMemoryLimit: '512MB',
+  maxWorkers: '50%',
 };
 
 // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async
