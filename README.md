@@ -1,7 +1,7 @@
 # Grafana AI Assistant
 
 <div align="center">
-  <img src="public/next.svg" alt="Grafana AI Assistant Logo" width="180" />
+  <img src="public/screenshot.png" alt="Grafana AI Assistant Logo" width="180" />
   <p><em>Intelligent natural language interface for your Grafana dashboards</em></p>
 </div>
 
