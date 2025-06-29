@@ -142,7 +142,6 @@ async function discoverDashboards(
 
 /**
  * Selects the appropriate dashboard panel based on the user's question
- * Uses the high-capability model for this complex reasoning task
  *
  * @param question - The user's question
  * @param dashboards - Available Grafana dashboards
@@ -167,11 +166,11 @@ async function selectDashboardPanel(
         // Format the prompt with the user's question and available dashboards
         const prompt = formatPanelSelectionPrompt(question, dashboards);
 
-        logDebug('Selecting dashboard panel using model', AI_MODELS.REASONING);
+        logDebug('Selecting dashboard panel using model', AI_MODELS.INTERPRETATION);
 
         // First, have the AI select the most appropriate dashboard
         const dashboardSelectionResponse = await ai.generate({
-            model: googleAI.model(AI_MODELS.REASONING),
+            model: googleAI.model(AI_MODELS.INTERPRETATION),
             prompt,
             tools: [listDashboards, getDashboard],
             // Set a reasonable maximum output tokens to control costs
@@ -283,7 +282,6 @@ async function getPanelData(
 
 /**
  * Interprets the dashboard panel data and provides a human-readable answer
- * Uses a more cost-effective model for this simpler task
  *
  * @param question - The original user question
  * @param panelData - The data from the dashboard panel
@@ -300,12 +298,12 @@ async function interpretResults(
         // The formatting function simplifies the data to reduce token usage
         const prompt = formatResultInterpretationPrompt(question, panelData);
 
-        logDebug('Interpreting panel data using model', AI_MODELS.INTERPRETATION);
+        logDebug('Interpreting panel data using model', AI_MODELS.REASONING);
 
         // Generate a streaming response to interpret the results
         // Using the more cost-effective model for interpretation
         const streamResponse = ai.generateStream({
-            model: googleAI.model(AI_MODELS.INTERPRETATION),
+            model: googleAI.model(AI_MODELS.REASONING),
             prompt,
             // Set a reasonable maximum output length to control costs
             maxOutputTokens: 1000,

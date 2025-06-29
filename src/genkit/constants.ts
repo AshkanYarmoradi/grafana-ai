@@ -19,7 +19,7 @@ export const AI_MODELS = {
     REASONING: 'gemini-2.5-pro',
 
     // Model for data interpretation (using a more cost-effective model)
-    INTERPRETATION: 'gemini-1.5-flash',
+    INTERPRETATION: 'gemini-2.5-flash',
 };
 
 /**
