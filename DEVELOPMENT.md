@@ -1,6 +1,8 @@
 # Development Guide for Grafana AI Assistant
 
-This guide provides detailed information for developers who want to contribute to the Grafana AI Assistant project. It covers the codebase structure, development workflow, and technical details that will help you understand how the application works.
+This guide provides detailed information for developers who want to contribute to the Grafana AI Assistant project. It
+covers the codebase structure, development workflow, and technical details that will help you understand how the
+application works.
 
 ## Codebase Structure
 
@@ -119,18 +121,21 @@ The AI uses carefully crafted prompt templates (defined in `constants.ts`) to:
 ### 1. Authentication Issues
 
 If you encounter authentication errors when connecting to Grafana:
+
 - Verify that your Grafana API key has the necessary permissions
 - Check that the API key is correctly set in your `.env.local` file
 
 ### 2. AI Model Errors
 
 If the AI model fails to generate appropriate queries:
+
 - Check that your Google AI API key is valid and has access to the Gemini models
 - Verify that the prompt templates in `constants.ts` are correctly formatted
 
 ### 3. Grafana API Errors
 
 If you encounter errors when querying Grafana:
+
 - Verify that your Grafana instance is accessible
 - Check that the datasource you're trying to query exists and is properly configured
 - Ensure that the generated query is valid for the selected datasource type

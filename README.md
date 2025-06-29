@@ -14,19 +14,22 @@
 
 ## 🌟 Overview
 
-Grafana AI Assistant is a powerful tool that allows you to interact with your Grafana dashboards using natural language. Simply ask questions about your metrics and data, and the AI will generate appropriate queries, execute them against your Grafana datasources, and provide human-readable interpretations of the results.
+Grafana AI Assistant is a powerful tool that allows you to interact with your Grafana dashboards using natural language.
+Simply ask questions about your metrics and data, and the AI will generate appropriate queries, execute them against
+your Grafana datasources, and provide human-readable interpretations of the results.
 
-No more struggling with complex query languages or digging through multiple dashboards to find the information you need. Just ask your question in plain English, and let Grafana AI Assistant do the work for you.
+No more struggling with complex query languages or digging through multiple dashboards to find the information you need.
+Just ask your question in plain English, and let Grafana AI Assistant do the work for you.
 
 ## ✨ Features
 
 - **Natural Language Interface**: Ask questions about your metrics in plain English
 - **Multi-Datasource Support**: Works with various Grafana datasources:
-  - Prometheus
-  - InfluxDB
-  - Loki
-  - PostgreSQL, MySQL, MSSQL
-  - And more!
+    - Prometheus
+    - InfluxDB
+    - Loki
+    - PostgreSQL, MySQL, MSSQL
+    - And more!
 - **Intelligent Query Generation**: Automatically generates appropriate queries based on your question
 - **Human-Readable Answers**: Interprets query results and provides clear, concise explanations
 - **Streaming Responses**: Delivers answers in real-time as they're generated
@@ -111,10 +114,10 @@ The application follows this workflow:
 1. User submits a question through the UI
 2. The question is sent to the `/api/grafana` endpoint
 3. The `grafanaFlow` processes the question:
-   - Discovers available Grafana datasources
-   - Generates an appropriate query using AI
-   - Executes the query against the selected datasource
-   - Interprets the results using AI
+    - Discovers available Grafana datasources
+    - Generates an appropriate query using AI
+    - Executes the query against the selected datasource
+    - Interprets the results using AI
 4. The response is streamed back to the UI in real-time
 5. The UI displays the formatted answer to the user
 

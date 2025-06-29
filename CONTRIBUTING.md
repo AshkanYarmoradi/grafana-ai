@@ -1,10 +1,12 @@
 # Contributing to Grafana AI Assistant
 
-Thank you for considering contributing to Grafana AI Assistant! This document provides guidelines and instructions for contributing to this project.
+Thank you for considering contributing to Grafana AI Assistant! This document provides guidelines and instructions for
+contributing to this project.
 
 ## Code of Conduct
 
-By participating in this project, you agree to abide by our Code of Conduct. Please be respectful, inclusive, and considerate in all interactions.
+By participating in this project, you agree to abide by our Code of Conduct. Please be respectful, inclusive, and
+considerate in all interactions.
 
 ## How Can I Contribute?
 

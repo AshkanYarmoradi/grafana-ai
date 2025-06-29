@@ -2,5 +2,5 @@
 const grafanaFlow = jest.fn();
 
 module.exports = {
-  grafanaFlow,
+    grafanaFlow,
 };
