@@ -11,7 +11,7 @@ class MockAbortController {
     this.signal.aborted = true;
   }
 }
-global.AbortController = MockAbortController as any;
+global.AbortController = MockAbortController as unknown as typeof AbortController;
 
 // Mock setTimeout and clearTimeout
 jest.useFakeTimers();

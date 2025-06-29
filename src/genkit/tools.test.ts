@@ -1,4 +1,4 @@
-import { ai, listDatasources, queryDatasource, listDashboards, getDashboard, getDashboardPanelData } from './tools';
+import { listDatasources, queryDatasource, listDashboards, getDashboard, getDashboardPanelData } from './tools';
 import { GrafanaApiError, GrafanaErrorType, grafanaApiRequest } from './grafanaApi';
 import { logDebug } from './utils';
 

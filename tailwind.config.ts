@@ -27,7 +27,7 @@ const config: Config = {
                     '50%': {opacity: 0.85},
                 },
             },
-            typography: (theme) => ({
+            typography: (theme: any) => ({
                 DEFAULT: {
                     css: {
                         color: theme('colors.gray.700'),

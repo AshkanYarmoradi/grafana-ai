@@ -140,7 +140,7 @@ function safeLog(message: string, data: Record<string, unknown> = {}, enableLogg
 
     // Remove sensitive information from headers if present
     if (sanitizedData.headers) {
-        const sanitizedHeaders = {...sanitizedData.headers};
+        const sanitizedHeaders = {...sanitizedData.headers} as Record<string, unknown>;
         if (sanitizedHeaders.Authorization) {
             sanitizedHeaders.Authorization = '[REDACTED]';
         }
