@@ -109,7 +109,7 @@ async function discoverDashboards(
         }
 
         // Cache miss or expired, fetch from API
-        const dashboardsResponse = await listDashboards.run({});
+        const dashboardsResponse = await listDashboards.run({ limit: 100 });
         const availableDashboards = dashboardsResponse?.result || [];
 
         // Update cache
@@ -169,8 +169,6 @@ async function selectDashboardPanel(
             model: googleAI.model(AI_MODELS.INTERPRETATION),
             prompt,
             tools: [listDashboards, getDashboard],
-            // Set a reasonable maximum output tokens to control costs
-            maxOutputTokens: 1500,
             output: {
                 schema: z.object({
                     dashboardUid: z.string().describe('The uid of the selected dashboard.'),
@@ -301,8 +299,6 @@ async function interpretResults(
         const streamResponse = ai.generateStream({
             model: googleAI.model(AI_MODELS.REASONING),
             prompt,
-            // Set a reasonable maximum output length to control costs
-            maxOutputTokens: 1000,
         });
 
         // Stream the response chunks to the client
