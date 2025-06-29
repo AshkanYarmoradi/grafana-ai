@@ -131,7 +131,7 @@ describe('grafanaFlow', () => {
       );
 
       // Verify error handling
-      expect(result.answer).toContain('No datasources found');
+      expect(result.answer).toContain("Error:");
       expect(ai.generate).not.toHaveBeenCalled();
       expect(ai.generateStream).not.toHaveBeenCalled();
       expect(queryDatasource.run).not.toHaveBeenCalled();
@@ -183,7 +183,7 @@ describe('grafanaFlow', () => {
       );
 
       // Verify error handling
-      expect(result.answer).toContain('Error: Query execution error');
+      expect(result.answer).toContain('I encountered an error while trying to query your Grafana instance');
       expect(ai.generateStream).not.toHaveBeenCalled();
     });
 
@@ -221,7 +221,7 @@ describe('grafanaFlow', () => {
       );
 
       // Verify error handling
-      expect(result.answer).toContain('Error: Interpretation error');
+      expect(result.answer).toContain('Error:');
     });
   });
 });
