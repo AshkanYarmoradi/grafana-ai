@@ -16,8 +16,18 @@ export default function Home() {
         setMounted(true);
     }, []);
 
-    async function streamAnswer(formData: FormData) {
+    // Handle form submission
+    async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+        e.preventDefault();
+
+        // Get form data
+        const formData = new FormData(e.currentTarget);
         const question = formData.get('question')?.toString() ?? '';
+
+        // Don't process empty questions
+        if (!question.trim()) return;
+
+        // Set loading state immediately to show spinner and disable button
         setIsLoading(true);
         setStreamedText(null);
 
@@ -34,6 +44,8 @@ export default function Home() {
             }
         } catch (error) {
             console.error('Error streaming answer:', error);
+            // Show error message to user
+            setStreamedText("Sorry, there was an error processing your request. Please try again.");
         } finally {
             setIsLoading(false);
         }
@@ -95,7 +107,7 @@ export default function Home() {
                     transition={{ duration: 0.7, delay: 0.3, ease: "easeOut" }}
                     whileHover={{ boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)" }}
                 >
-                    <form action={streamAnswer} className="space-y-5">
+                    <form onSubmit={handleSubmit} className="space-y-5">
                         <div className="space-y-3">
                             <motion.label
                                 htmlFor="question"
