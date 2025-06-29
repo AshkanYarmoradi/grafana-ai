@@ -10,6 +10,7 @@
 [![React](https://img.shields.io/badge/React-19.1.0-blue.svg)](https://reactjs.org/)
 [![GenKit](https://img.shields.io/badge/GenKit-1.14.0-purple.svg)](https://genkit.ai/)
 [![Google AI](https://img.shields.io/badge/Google%20AI-Gemini%202.5%20Pro%20%7C%20Flash-green.svg)](https://ai.google.dev/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](DOCKER.md)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ## 🌟 Overview
@@ -46,6 +47,7 @@ Just ask your question in plain English, and let Grafana AI Assistant do the wor
 - Node.js 18.x or higher
 - A Grafana instance with API access
 - Google AI API key (for Gemini models)
+- Docker and Docker Compose (optional, for Docker deployment)
 
 ### Environment Setup
 
@@ -96,6 +98,26 @@ Build the application for production:
 npm run build
 npm start
 ```
+
+### Docker Deployment
+
+You can also run the application using Docker:
+
+```bash
+# Using Docker Compose (recommended)
+docker-compose up -d
+
+# Or using Docker directly
+docker build -t grafana-ai .
+docker run -p 3000:3000 \
+  -e GRAFANA_URL=your-grafana-url \
+  -e GRAFANA_USERNAME=your-username \
+  -e GRAFANA_PASSWORD=your-password \
+  -e GOOGLE_API_KEY=your-google-api-key \
+  grafana-ai
+```
+
+For detailed instructions on Docker deployment, including development setup and troubleshooting, see [DOCKER.md](DOCKER.md).
 
 ## 💡 Usage Examples
 

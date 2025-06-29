@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  grafana-ai:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - GRAFANA_URL=${GRAFANA_URL}
+      - GRAFANA_USERNAME=${GRAFANA_USERNAME}
+      - GRAFANA_PASSWORD=${GRAFANA_PASSWORD}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - DEBUG_LOGGING=${DEBUG_LOGGING:-true}
+    volumes:
+      - ./:/app
+      - /app/node_modules
+    command: npm run dev
+    restart: unless-stopped
+    # Uncomment the following lines if you want to use a .env file instead of environment variables
+    # env_file:
+    #   - .env.local
