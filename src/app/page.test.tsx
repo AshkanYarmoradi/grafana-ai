@@ -37,7 +37,7 @@ jest.mock('./page', () => {
         // Simulate the streamFlow call
         await new Promise(resolve => setTimeout(resolve, 100)); // Small delay to allow test to check loading state
         setStreamedText('Test response chunk 1Test response chunk 2');
-      } catch {
+      } catch (error) {
         setErrorMessage('Sorry, there was an error processing your request. Please try again.');
       } finally {
         setIsLoading(false);
@@ -119,8 +119,7 @@ describe('Home Component', () => {
   it('shows loading state when form is submitted', async () => {
     // Setup mock implementation for streamFlow
     const mockAsyncIterator = {
-      // Use a more compatible approach for async iteration
-      async *[Symbol.asyncIterator]() {
+      [Symbol.asyncIterator]: async function* () {
         yield 'Test response chunk 1';
         yield 'Test response chunk 2';
       }
@@ -188,8 +187,7 @@ describe('Home Component', () => {
   it('preserves user input after submission', async () => {
     // Setup mock implementation for streamFlow
     const mockAsyncIterator = {
-      // Use a more compatible approach for async iteration
-      async *[Symbol.asyncIterator]() {
+      [Symbol.asyncIterator]: async function* () {
         yield 'Test response';
       }
     };
