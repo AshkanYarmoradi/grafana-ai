@@ -237,7 +237,7 @@ export default function Home() {
                     animate={{ opacity: mounted ? 1 : 0 }}
                     transition={{ duration: 0.7, delay: 0.7 }}
                 >
-                    <p>Powered by Grafana AI and Next.js</p>
+                    <p>Powered by ❤️ From <a href={"https://github.com/AshkanYarmoradi/grafana-ai"}>Lena and Nina Dad</a></p>
                 </motion.footer>
             </div>
         </main>
