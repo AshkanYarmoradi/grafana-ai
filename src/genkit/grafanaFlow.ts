@@ -380,7 +380,7 @@ async function analyzeQuestion(
 
         logDebug('Analyzing question to determine if dashboard data is needed', { question });
 
-        // Use the interpretation model for this decision as it's a simpler task
+        // Use the reasoning model for this decision
         const analysisResponse = await ai.generate({
             model: googleAI.model(AI_MODELS.REASONING),
             prompt,

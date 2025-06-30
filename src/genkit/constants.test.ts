@@ -13,7 +13,6 @@ describe('Constants', () => {
     it('should define AI model configurations', () => {
       expect(AI_MODELS).toBeDefined();
       expect(AI_MODELS.REASONING).toBe('gemini-2.5-pro');
-      expect(AI_MODELS.INTERPRETATION).toBe('gemini-2.5-flash');
     });
   });
 

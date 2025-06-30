@@ -125,7 +125,7 @@ describe('GrafanaFlow', () => {
   });
 
   describe('grafanaFlow', () => {
-    it.skip('should successfully process a query', async () => {
+    it('should successfully process a query', async () => {
       // Mock successful dashboard listing
       const mockDashboards = [
         { uid: 'dash1', title: 'System Metrics', url: '/d/dash1', tags: ['system'] },
@@ -191,7 +191,7 @@ describe('GrafanaFlow', () => {
         mockDashboards
       );
       expect(mockGenerate).toHaveBeenCalledWith(expect.objectContaining({
-        model: expect.objectContaining({ name: AI_MODELS.INTERPRETATION }),
+        model: expect.objectContaining({ name: AI_MODELS.REASONING }),
         prompt: 'mocked panel selection prompt',
         tools: [listDashboards, getDashboard]
       }));
@@ -220,7 +220,7 @@ describe('GrafanaFlow', () => {
       expect(result).toEqual({ answer: 'The CPU usage is normal.' });
     });
 
-    it.skip('should handle failure to find dashboards', async () => {
+    it('should handle failure to find dashboards', async () => {
       // Mock empty dashboard listing
       mockListDashboardsRun.mockResolvedValueOnce({
         result: []
@@ -237,7 +237,7 @@ describe('GrafanaFlow', () => {
       expect(result).toEqual({ answer: "I couldn't find any dashboards in your Grafana instance." });
     });
 
-    it.skip('should handle failure to select dashboard panel', async () => {
+    it('should handle failure to select dashboard panel', async () => {
       // Mock successful dashboard listing
       const mockDashboards = [
         { uid: 'dash1', title: 'System Metrics', url: '/d/dash1', tags: ['system'] }
@@ -263,7 +263,7 @@ describe('GrafanaFlow', () => {
       expect(result).toEqual({ answer: "I couldn't determine which dashboard panel would best answer your question." });
     });
 
-    it.skip('should handle failure to get panel data', async () => {
+    it('should handle failure to get panel data', async () => {
       // Mock successful dashboard listing
       const mockDashboards = [
         { uid: 'dash1', title: 'System Metrics', url: '/d/dash1', tags: ['system'] }
@@ -299,7 +299,7 @@ describe('GrafanaFlow', () => {
       expect(result).toEqual({ answer: "I was able to find the dashboard panel, but it returned no data." });
     });
 
-    it.skip('should handle API errors with appropriate messages', async () => {
+    it('should handle API errors with appropriate messages', async () => {
       // Mock dashboard listing with API error
       const error = new GrafanaApiError(
         401,
@@ -323,7 +323,7 @@ describe('GrafanaFlow', () => {
       expect(result).toEqual({ answer: "I couldn't access your Grafana instance due to authentication issues. Please check your API key." });
     });
 
-    it.skip('should use default time range if not specified', async () => {
+    it('should use default time range if not specified', async () => {
       // Mock successful dashboard listing
       const mockDashboards = [
         { uid: 'dash1', title: 'System Metrics', url: '/d/dash1', tags: ['system'] }
@@ -383,7 +383,7 @@ describe('GrafanaFlow', () => {
       });
     });
 
-    it.skip('should use dashboard cache when available', async () => {
+    it('should use dashboard cache when available', async () => {
       // First call to establish cache
       const mockDashboards = [
         { uid: 'dash1', title: 'System Metrics', url: '/d/dash1', tags: ['system'] }
@@ -467,7 +467,7 @@ describe('GrafanaFlow', () => {
       expect(mockLogDebug).toHaveBeenCalledWith(expect.stringContaining('Using cached dashboards'), expect.anything());
     });
 
-    it.skip('should answer questions directly without querying Grafana when possible', async () => {
+    it('should answer questions directly without querying Grafana when possible', async () => {
       // Mock question analysis to return a direct answer
       const directAnswer = "Grafana is an open-source analytics and monitoring platform that integrates with various data sources to create dashboards and visualizations.";
 
@@ -497,7 +497,7 @@ describe('GrafanaFlow', () => {
       expect(mockLogDebug).toHaveBeenCalledWith('Question can be answered directly without querying Grafana');
     });
 
-    it.skip('should use dashboard and panel info from question analysis when available', async () => {
+    it('should use dashboard and panel info from question analysis when available', async () => {
       // Mock question analysis to return dashboard and panel info
       mockGenerate.mockResolvedValueOnce({
         output: {
