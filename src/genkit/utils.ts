@@ -67,21 +67,23 @@ export function simplifyDatasources(datasources: DatasourceInfo[]): Pick<Datasou
 }
 
 /**
- * Formats the panel selection prompt with the provided data
+ * Formats the comprehensive prompt for dashboard panel selection
  *
  * @param question - The user's question
  * @param dashboards - Available Grafana dashboards
- * @returns Formatted prompt for panel selection
+ * @returns Formatted comprehensive prompt configured for panel selection
  */
-export function formatPanelSelectionPrompt(
+export function formatComprehensivePromptForSelection(
     question: string,
     dashboards: Array<{ uid: string; title: string; url: string; folderUid?: string; folderTitle?: string; tags?: string[] }>
 ): string {
-    return formatTemplate(PROMPT_TEMPLATES.PANEL_SELECTION, {
+    return formatTemplate(PROMPT_TEMPLATES.COMPREHENSIVE, {
         question,
         currentTime: new Date().toISOString(),
         // Use compact JSON formatting to reduce token usage
         dashboards: JSON.stringify(dashboards),
+        // Empty panel data for selection mode
+        panelData: '""',
     });
 }
 
@@ -124,21 +126,24 @@ function simplifyQueryResult(queryResult: unknown): unknown {
 }
 
 /**
- * Formats the result interpretation prompt with the provided data
+ * Formats the comprehensive prompt for data interpretation
  *
  * @param question - The original user question
  * @param panelData - The data from the dashboard panel
- * @returns Formatted prompt for result interpretation
+ * @returns Formatted comprehensive prompt configured for data interpretation
  */
-export function formatResultInterpretationPrompt(
+export function formatComprehensivePromptForInterpretation(
     question: string,
     panelData: unknown
 ): string {
     // Simplify panel data to reduce token usage
     const simplifiedResult = simplifyQueryResult(panelData);
 
-    return formatTemplate(PROMPT_TEMPLATES.RESULT_INTERPRETATION, {
+    return formatTemplate(PROMPT_TEMPLATES.COMPREHENSIVE, {
         question,
+        currentTime: new Date().toISOString(),
+        // Empty dashboards for interpretation mode
+        dashboards: '[]',
         // Use compact JSON formatting to reduce token usage
         panelData: JSON.stringify(simplifiedResult),
     });

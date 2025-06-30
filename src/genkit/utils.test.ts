@@ -1,8 +1,8 @@
 import {
   formatTemplate,
   simplifyDatasources,
-  formatPanelSelectionPrompt,
-  formatResultInterpretationPrompt,
+  formatComprehensivePromptForSelection,
+  formatComprehensivePromptForInterpretation,
   getErrorMessage,
   logDebug,
   DatasourceInfo
@@ -72,8 +72,8 @@ describe('Utils', () => {
     });
   });
 
-  describe('formatPanelSelectionPrompt', () => {
-    it('should format panel selection prompt with question and dashboards', () => {
+  describe('formatComprehensivePromptForSelection', () => {
+    it('should format comprehensive prompt for panel selection with question and dashboards', () => {
       const question = 'What is the CPU usage?';
       const dashboards = [
         { uid: 'dash1', title: 'System Metrics', url: '/d/dash1', tags: ['system'] }
@@ -92,7 +92,7 @@ describe('Utils', () => {
         }
       } as unknown as typeof Date;
 
-      const result = formatPanelSelectionPrompt(question, dashboards);
+      const result = formatComprehensivePromptForSelection(question, dashboards);
 
       // Restore original Date
       global.Date = originalDateNow as unknown as typeof Date;
@@ -101,19 +101,21 @@ describe('Utils', () => {
       expect(result).toContain(question);
       expect(result).toContain('2023-01-01T00:00:00.000Z');
       expect(result).toContain(JSON.stringify(dashboards));
+      expect(result).toContain('""'); // Empty panel data for selection mode
 
       // Verify the prompt is based on the template
-      const expectedPrompt = PROMPT_TEMPLATES.PANEL_SELECTION
+      const expectedPrompt = PROMPT_TEMPLATES.COMPREHENSIVE
         .replace('{{question}}', question)
         .replace('{{currentTime}}', '2023-01-01T00:00:00.000Z')
-        .replace('{{dashboards}}', JSON.stringify(dashboards));
+        .replace('{{dashboards}}', JSON.stringify(dashboards))
+        .replace('{{panelData}}', '""');
 
       expect(result).toBe(expectedPrompt);
     });
   });
 
-  describe('formatResultInterpretationPrompt', () => {
-    it('should format result interpretation prompt with question and panel data', () => {
+  describe('formatComprehensivePromptForInterpretation', () => {
+    it('should format comprehensive prompt for data interpretation with question and panel data', () => {
       const question = 'What is the CPU usage?';
       const panelData = { 
         series: [
@@ -121,15 +123,35 @@ describe('Utils', () => {
         ]
       };
 
-      const result = formatResultInterpretationPrompt(question, panelData);
+      // Mock Date.toISOString to return a consistent value
+      const originalDateNow = Date.now;
+      const mockDate = new Date('2023-01-01T00:00:00Z');
+      global.Date = class extends Date {
+        constructor() {
+          super();
+          return mockDate;
+        }
+        toISOString() {
+          return '2023-01-01T00:00:00.000Z';
+        }
+      } as unknown as typeof Date;
+
+      const result = formatComprehensivePromptForInterpretation(question, panelData);
+
+      // Restore original Date
+      global.Date = originalDateNow as unknown as typeof Date;
 
       // Verify the prompt contains the expected placeholders replaced with values
       expect(result).toContain(question);
+      expect(result).toContain('2023-01-01T00:00:00.000Z');
+      expect(result).toContain('[]'); // Empty dashboards for interpretation mode
       expect(result).toContain(JSON.stringify(panelData));
 
       // Verify the prompt is based on the template
-      const expectedPrompt = PROMPT_TEMPLATES.RESULT_INTERPRETATION
+      const expectedPrompt = PROMPT_TEMPLATES.COMPREHENSIVE
         .replace('{{question}}', question)
+        .replace('{{currentTime}}', '2023-01-01T00:00:00.000Z')
+        .replace('{{dashboards}}', '[]')
         .replace('{{panelData}}', JSON.stringify(panelData));
 
       expect(result).toBe(expectedPrompt);
@@ -144,7 +166,7 @@ describe('Utils', () => {
         ]
       };
 
-      const result = formatResultInterpretationPrompt(question, panelData);
+      const result = formatComprehensivePromptForInterpretation(question, panelData);
 
       // The large array should be truncated in the result
       expect(result).not.toContain(JSON.stringify(largeArray));

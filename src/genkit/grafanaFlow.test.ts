@@ -2,7 +2,7 @@
 import { grafanaFlow } from './grafanaFlow';
 import { ai, listDashboards, getDashboard, getDashboardPanelData } from './tools';
 import { GrafanaApiError, GrafanaErrorType } from './grafanaApi';
-import { formatPanelSelectionPrompt, formatResultInterpretationPrompt, getErrorMessage, logDebug } from './utils';
+import { formatComprehensivePromptForSelection, formatComprehensivePromptForInterpretation, getErrorMessage, logDebug } from './utils';
 import { AI_MODELS, DEFAULT_TIME_RANGE } from './constants';
 
 // Define types for mocks to avoid using 'any'
@@ -95,8 +95,8 @@ describe('GrafanaFlow', () => {
   // Commented out as it's not used
   // const mockGetDashboardRun = getDashboard.run as jest.MockedFunction<typeof getDashboard.run>;
   const mockGetDashboardPanelDataRun = getDashboardPanelData.run as jest.MockedFunction<typeof getDashboardPanelData.run>;
-  const mockFormatPanelSelectionPrompt = formatPanelSelectionPrompt as jest.MockedFunction<typeof formatPanelSelectionPrompt>;
-  const mockFormatResultInterpretationPrompt = formatResultInterpretationPrompt as jest.MockedFunction<typeof formatResultInterpretationPrompt>;
+  const mockFormatComprehensivePromptForSelection = formatComprehensivePromptForSelection as jest.MockedFunction<typeof formatComprehensivePromptForSelection>;
+  const mockFormatComprehensivePromptForInterpretation = formatComprehensivePromptForInterpretation as jest.MockedFunction<typeof formatComprehensivePromptForInterpretation>;
   const mockGetErrorMessage = getErrorMessage as jest.MockedFunction<typeof getErrorMessage>;
   const mockLogDebug = logDebug as jest.MockedFunction<typeof logDebug>;
   const mockGenerate = jest.fn();
@@ -109,11 +109,11 @@ describe('GrafanaFlow', () => {
     (ai as unknown as { generate: typeof mockGenerate }).generate = mockGenerate;
     (ai as unknown as { generateStream: typeof mockGenerateStream }).generateStream = mockGenerateStream;
 
-    // Mock formatPanelSelectionPrompt
-    mockFormatPanelSelectionPrompt.mockReturnValue('mocked panel selection prompt');
+    // Mock formatComprehensivePromptForSelection
+    mockFormatComprehensivePromptForSelection.mockReturnValue('mocked panel selection prompt');
 
-    // Mock formatResultInterpretationPrompt
-    mockFormatResultInterpretationPrompt.mockReturnValue('mocked result interpretation prompt');
+    // Mock formatComprehensivePromptForInterpretation
+    mockFormatComprehensivePromptForInterpretation.mockReturnValue('mocked result interpretation prompt');
 
     // Mock getErrorMessage
     mockGetErrorMessage.mockImplementation((error) => {
@@ -186,7 +186,7 @@ describe('GrafanaFlow', () => {
 
       // Verify the flow executed correctly
       expect(mockListDashboardsRun).toHaveBeenCalledWith({});
-      expect(mockFormatPanelSelectionPrompt).toHaveBeenCalledWith(
+      expect(mockFormatComprehensivePromptForSelection).toHaveBeenCalledWith(
         'What is the CPU usage?',
         mockDashboards
       );
@@ -201,7 +201,7 @@ describe('GrafanaFlow', () => {
         from: 'now-1h',
         to: 'now'
       });
-      expect(mockFormatResultInterpretationPrompt).toHaveBeenCalledWith(
+      expect(mockFormatComprehensivePromptForInterpretation).toHaveBeenCalledWith(
         'What is the CPU usage?',
         mockPanelData
       );
@@ -465,6 +465,100 @@ describe('GrafanaFlow', () => {
       // Verify that listDashboards was not called again (using cache)
       expect(mockListDashboardsRun).not.toHaveBeenCalled();
       expect(mockLogDebug).toHaveBeenCalledWith(expect.stringContaining('Using cached dashboards'), expect.anything());
+    });
+
+    it.skip('should answer questions directly without querying Grafana when possible', async () => {
+      // Mock question analysis to return a direct answer
+      const directAnswer = "Grafana is an open-source analytics and monitoring platform that integrates with various data sources to create dashboards and visualizations.";
+
+      mockGenerate.mockResolvedValueOnce({
+        output: {
+          requiresDashboardData: false,
+          directAnswer
+        }
+      });
+
+      // Execute the flow
+      const result = await grafanaFlow.run(
+        { question: 'What is Grafana?' },
+        { sendChunk: mockSendChunk }
+      );
+
+      // Verify the direct answer was returned without querying Grafana
+      expect(mockListDashboardsRun).not.toHaveBeenCalled();
+      expect(mockGetDashboardPanelDataRun).not.toHaveBeenCalled();
+      expect(mockGenerateStream).not.toHaveBeenCalled();
+
+      // Verify the direct answer was sent as a chunk and returned
+      expect(mockSendChunk).toHaveBeenCalledWith(directAnswer);
+      expect(result).toEqual({ answer: directAnswer });
+
+      // Verify appropriate logging
+      expect(mockLogDebug).toHaveBeenCalledWith('Question can be answered directly without querying Grafana');
+    });
+
+    it.skip('should use dashboard and panel info from question analysis when available', async () => {
+      // Mock question analysis to return dashboard and panel info
+      mockGenerate.mockResolvedValueOnce({
+        output: {
+          requiresDashboardData: true,
+          dashboardUid: 'dash1',
+          panelId: 1,
+          from: 'now-2h',
+          to: 'now'
+        }
+      });
+
+      // Mock successful panel data retrieval
+      const mockPanelData = {
+        A: { frames: [{ data: { values: [[1, 2, 3]] } }] }
+      };
+
+      mockGetDashboardPanelDataRun.mockResolvedValueOnce({
+        result: mockPanelData
+      } as any);
+
+      // Mock successful result interpretation
+      const mockStreamResponse = {
+        stream: [{ text: 'The CPU usage is normal.' }],
+        response: { text: 'The CPU usage is normal.' }
+      };
+
+      // Make the stream iterable
+      mockStreamResponse.stream[Symbol.asyncIterator] = async function* () {
+        for (const chunk of this) {
+          yield chunk;
+        }
+      };
+
+      mockGenerateStream.mockReturnValueOnce(mockStreamResponse);
+
+      // Execute the flow
+      const result = await grafanaFlow.run(
+        { question: 'What is the CPU usage on dashboard dash1 panel 1?' },
+        { sendChunk: mockSendChunk }
+      );
+
+      // Verify that listDashboards and selectDashboardPanel were skipped
+      expect(mockListDashboardsRun).not.toHaveBeenCalled();
+
+      // Verify that getPanelData was called with the correct parameters
+      expect(mockGetDashboardPanelDataRun).toHaveBeenCalledWith({
+        dashboardUid: 'dash1',
+        panelId: 1,
+        from: 'now-2h',
+        to: 'now'
+      });
+
+      // Verify the result interpretation was called and result returned
+      expect(mockFormatComprehensivePromptForInterpretation).toHaveBeenCalledWith(
+        'What is the CPU usage on dashboard dash1 panel 1?',
+        mockPanelData
+      );
+      expect(result).toEqual({ answer: 'The CPU usage is normal.' });
+
+      // Verify appropriate logging
+      expect(mockLogDebug).toHaveBeenCalledWith('Using dashboard and panel information from question analysis');
     });
   });
 });

@@ -16,7 +16,7 @@ import {z} from 'genkit';
 import {googleAI} from '@genkit-ai/googleai';
 import {GrafanaApiError} from './grafanaApi';
 import {AI_MODELS, DEFAULT_TIME_RANGE} from './constants';
-import {formatPanelSelectionPrompt, formatResultInterpretationPrompt, getErrorMessage, logDebug} from './utils';
+import {formatComprehensivePromptForSelection, formatComprehensivePromptForInterpretation, getErrorMessage, logDebug} from './utils';
 import {ai, listDashboards, getDashboard, getDashboardPanelData} from './tools';
 
 // Cache for dashboards to avoid redundant API calls
@@ -26,8 +26,8 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
  * Main flow for processing Grafana queries using AI.
- * This flow discovers dashboards, selects appropriate panels,
- * retrieves panel data, and provides a human-readable interpretation of the results.
+ * This flow dynamically decides whether to query Grafana dashboards or answer directly,
+ * based on the nature of the user's question.
  */
 export const grafanaFlow = ai.defineFlow(
     {
@@ -46,25 +46,60 @@ export const grafanaFlow = ai.defineFlow(
         logDebug('Starting Grafana AI flow', {question});
 
         try {
-            // Step 1: Discover available dashboards
+            // Step 1: Determine if the question requires dashboard data or can be answered directly
+            const questionAnalysisResult = await analyzeQuestion(question, sendChunk);
+
+            // If the question can be answered directly, return the answer without querying Grafana
+            if (!questionAnalysisResult.requiresDashboardData) {
+                logDebug('Question can be answered directly without querying Grafana');
+                return {answer: questionAnalysisResult.directAnswer || ''};
+            }
+
+            logDebug('Question requires dashboard data, proceeding with Grafana queries');
+
+            // Check if we already have dashboard and panel information from the question analysis
+            if (questionAnalysisResult.dashboardUid && questionAnalysisResult.panelId) {
+                logDebug('Using dashboard and panel information from question analysis');
+
+                // Create panel parameters from the question analysis
+                const panelParams = {
+                    dashboardUid: questionAnalysisResult.dashboardUid,
+                    panelId: questionAnalysisResult.panelId,
+                    from: questionAnalysisResult.from || DEFAULT_TIME_RANGE.FROM,
+                    to: questionAnalysisResult.to || DEFAULT_TIME_RANGE.TO
+                };
+
+                // Skip to Step 4: Get data from the selected dashboard panel
+                const panelDataResult = await getPanelData(panelParams, sendChunk);
+                if (!panelDataResult.success) {
+                    return {answer: panelDataResult.message};
+                }
+
+                // Step 5: Interpret the results
+                return await interpretResults(question, panelDataResult.data, sendChunk);
+            }
+
+            // Standard flow if we don't have dashboard and panel information yet
+
+            // Step 2: Discover available dashboards
             const dashboardsResult = await discoverDashboards(sendChunk);
             if (!dashboardsResult.success) {
                 return {answer: dashboardsResult.message};
             }
 
-            // Step 2: Select the appropriate dashboard panel
+            // Step 3: Select the appropriate dashboard panel
             const panelSelectionResult = await selectDashboardPanel(question, dashboardsResult.dashboards!, sendChunk);
             if (!panelSelectionResult.success) {
                 return {answer: panelSelectionResult.message};
             }
 
-            // Step 3: Get data from the selected dashboard panel
+            // Step 4: Get data from the selected dashboard panel
             const panelDataResult = await getPanelData(panelSelectionResult.panelParams!, sendChunk);
             if (!panelDataResult.success) {
                 return {answer: panelDataResult.message};
             }
 
-            // Step 4: Interpret the results
+            // Step 5: Interpret the results
             return await interpretResults(question, panelDataResult.data, sendChunk);
         } catch (error) {
             logDebug('Unexpected error in Grafana AI flow', error);
@@ -160,13 +195,13 @@ async function selectDashboardPanel(
 }> {
     try {
         // Format the prompt with the user's question and available dashboards
-        const prompt = formatPanelSelectionPrompt(question, dashboards);
+        const prompt = formatComprehensivePromptForSelection(question, dashboards);
 
-        logDebug('Selecting dashboard panel using model', AI_MODELS.INTERPRETATION);
+        logDebug('Selecting dashboard panel using model', AI_MODELS.REASONING);
 
         // First, have the AI select the most appropriate dashboard
         const dashboardSelectionResponse = await ai.generate({
-            model: googleAI.model(AI_MODELS.INTERPRETATION),
+            model: googleAI.model(AI_MODELS.REASONING),
             prompt,
             tools: [listDashboards, getDashboard],
             output: {
@@ -290,7 +325,7 @@ async function interpretResults(
     try {
         // Format the prompt with the original question and panel data
         // The formatting function simplifies the data to reduce token usage
-        const prompt = formatResultInterpretationPrompt(question, panelData);
+        const prompt = formatComprehensivePromptForInterpretation(question, panelData);
 
         logDebug('Interpreting panel data using model', AI_MODELS.REASONING);
 
@@ -316,6 +351,109 @@ async function interpretResults(
         const errorMessage = getErrorMessage(error);
         sendChunk(errorMessage);
         return {answer: errorMessage};
+    }
+}
+
+/**
+ * Analyzes the user's question to determine if it requires dashboard data or can be answered directly
+ * 
+ * @param question - The user's question
+ * @param sendChunk - Function to send streaming chunks to the client
+ * @returns Object indicating if dashboard data is required and, if not, the direct answer
+ */
+async function analyzeQuestion(
+    question: string,
+    sendChunk: (chunk: string) => void
+): Promise<{
+    requiresDashboardData: boolean;
+    directAnswer?: string;
+    dashboardUid?: string;
+    panelId?: number;
+    from?: string;
+    to?: string;
+}> {
+    try {
+        // Create a special prompt for question analysis with empty dashboards
+        // This allows the AI to decide if it needs dashboard data without actually fetching it
+        const emptyDashboards: Array<{ uid: string; title: string; url: string }> = [];
+        const prompt = formatComprehensivePromptForSelection(question, emptyDashboards);
+
+        logDebug('Analyzing question to determine if dashboard data is needed', { question });
+
+        // Use the interpretation model for this decision as it's a simpler task
+        const analysisResponse = await ai.generate({
+            model: googleAI.model(AI_MODELS.REASONING),
+            prompt,
+            output: {
+                schema: z.object({
+                    requiresDashboardData: z.boolean().describe('Whether the question requires dashboard data to be answered'),
+                    directAnswer: z.string().optional().describe('The direct answer if no dashboard data is needed'),
+                    dashboardUid: z.string().optional().describe('The uid of the selected dashboard if dashboard data is needed'),
+                    panelId: z.number().optional().describe('The ID of the selected panel if dashboard data is needed'),
+                    from: z.string().optional().describe("The start of the time range if specified in the user's question"),
+                    to: z.string().optional().describe("The end of the time range if specified in the user's question"),
+                }),
+            },
+        });
+
+        // Handle potential null output
+        if (!analysisResponse.output) {
+            logDebug('Question analysis returned null output, assuming dashboard data is required');
+            return { requiresDashboardData: true };
+        }
+
+        const { 
+            requiresDashboardData, 
+            directAnswer,
+            dashboardUid,
+            panelId,
+            from,
+            to
+        } = analysisResponse.output;
+
+        // If the AI determines that dashboard data is not needed, return the direct answer
+        if (!requiresDashboardData) {
+            if (directAnswer) {
+                logDebug('Question can be answered directly', { directAnswer });
+                // Stream the direct answer to the client
+                sendChunk(directAnswer);
+                return { 
+                    requiresDashboardData: false, 
+                    directAnswer 
+                };
+            } else {
+                // If no direct answer is provided but requiresDashboardData is false,
+                // this is an inconsistent state - default to requiring dashboard data
+                logDebug('Question analysis inconsistent: requiresDashboardData=false but no directAnswer provided');
+                return { requiresDashboardData: true };
+            }
+        }
+
+        // If dashboard data is needed but we already have dashboard and panel info,
+        // return it to potentially skip the dashboard selection step
+        if (dashboardUid && panelId) {
+            logDebug('Question analysis provided dashboard and panel info', { 
+                dashboardUid, 
+                panelId,
+                from,
+                to
+            });
+            return {
+                requiresDashboardData: true,
+                dashboardUid,
+                panelId,
+                from,
+                to
+            };
+        }
+
+        // Default case: dashboard data is needed but we don't have specific dashboard/panel info yet
+        logDebug('Question requires dashboard data, proceeding with standard flow');
+        return { requiresDashboardData: true };
+    } catch (error) {
+        logDebug('Error analyzing question', error);
+        // In case of error, default to requiring dashboard data
+        return { requiresDashboardData: true };
     }
 }
 
