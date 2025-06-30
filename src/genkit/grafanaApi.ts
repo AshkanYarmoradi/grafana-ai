@@ -73,7 +73,7 @@ export interface GrafanaApiOptions extends RequestInit {
  * Default configuration for Grafana API requests
  */
 const DEFAULT_API_OPTIONS: Required<Pick<GrafanaApiOptions, 'timeoutMs' | 'maxRetries' | 'baseRetryDelayMs' | 'enableLogging'>> = {
-    timeoutMs: 30000,
+    timeoutMs: 100000,
     maxRetries: 3,
     baseRetryDelayMs: 1000,
     enableLogging: false,

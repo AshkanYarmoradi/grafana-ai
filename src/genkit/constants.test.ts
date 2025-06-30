@@ -13,24 +13,18 @@ describe('Constants', () => {
     it('should define AI model configurations', () => {
       expect(AI_MODELS).toBeDefined();
       expect(AI_MODELS.REASONING).toBe('gemini-2.5-pro');
-      expect(AI_MODELS.INTERPRETATION).toBe('gemini-2.5-flash');
     });
   });
 
   describe('PROMPT_TEMPLATES', () => {
-    it('should define panel selection prompt template', () => {
-      expect(PROMPT_TEMPLATES.PANEL_SELECTION).toBeDefined();
-      expect(typeof PROMPT_TEMPLATES.PANEL_SELECTION).toBe('string');
-      expect(PROMPT_TEMPLATES.PANEL_SELECTION).toContain('{{question}}');
-      expect(PROMPT_TEMPLATES.PANEL_SELECTION).toContain('{{currentTime}}');
-      expect(PROMPT_TEMPLATES.PANEL_SELECTION).toContain('{{dashboards}}');
-    });
-
-    it('should define result interpretation prompt template', () => {
-      expect(PROMPT_TEMPLATES.RESULT_INTERPRETATION).toBeDefined();
-      expect(typeof PROMPT_TEMPLATES.RESULT_INTERPRETATION).toBe('string');
-      expect(PROMPT_TEMPLATES.RESULT_INTERPRETATION).toContain('{{question}}');
-      expect(PROMPT_TEMPLATES.RESULT_INTERPRETATION).toContain('{{panelData}}');
+    it('should define comprehensive prompt template', () => {
+      expect(PROMPT_TEMPLATES.COMPREHENSIVE).toBeDefined();
+      expect(typeof PROMPT_TEMPLATES.COMPREHENSIVE).toBe('string');
+      expect(PROMPT_TEMPLATES.COMPREHENSIVE).toContain('{{question}}');
+      expect(PROMPT_TEMPLATES.COMPREHENSIVE).toContain('{{currentTime}}');
+      expect(PROMPT_TEMPLATES.COMPREHENSIVE).toContain('{{dashboards}}');
+      expect(PROMPT_TEMPLATES.COMPREHENSIVE).toContain('{{panelData}}');
+      expect(PROMPT_TEMPLATES.COMPREHENSIVE).toContain('SECURITY GUIDELINES');
     });
 
     it('should define error messages', () => {
