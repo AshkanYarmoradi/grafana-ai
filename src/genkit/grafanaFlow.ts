@@ -144,7 +144,7 @@ async function discoverDashboards(
         }
 
         // Cache miss or expired, fetch from API
-        const dashboardsResponse = await listDashboards.run({ limit: 100 });
+        const dashboardsResponse = await listDashboards.run({});
         const availableDashboards = dashboardsResponse?.result || [];
 
         // Update cache

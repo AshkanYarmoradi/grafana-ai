@@ -80,22 +80,15 @@ describe('Utils', () => {
       ];
 
       // Mock Date.toISOString to return a consistent value
-      const originalDateNow = Date.now;
+      const originalDate = global.Date;
       const mockDate = new Date('2023-01-01T00:00:00Z');
-      global.Date = class extends Date {
-        constructor() {
-          super();
-          return mockDate;
-        }
-        toISOString() {
-          return '2023-01-01T00:00:00.000Z';
-        }
-      } as unknown as typeof Date;
+      global.Date = jest.fn(() => mockDate) as unknown as typeof Date;
+      global.Date.prototype.toISOString = jest.fn(() => '2023-01-01T00:00:00.000Z');
 
       const result = formatComprehensivePromptForSelection(question, dashboards);
 
       // Restore original Date
-      global.Date = originalDateNow as unknown as typeof Date;
+      global.Date = originalDate;
 
       // Verify the prompt contains the expected placeholders replaced with values
       expect(result).toContain(question);
@@ -124,22 +117,15 @@ describe('Utils', () => {
       };
 
       // Mock Date.toISOString to return a consistent value
-      const originalDateNow = Date.now;
+      const originalDate = global.Date;
       const mockDate = new Date('2023-01-01T00:00:00Z');
-      global.Date = class extends Date {
-        constructor() {
-          super();
-          return mockDate;
-        }
-        toISOString() {
-          return '2023-01-01T00:00:00.000Z';
-        }
-      } as unknown as typeof Date;
+      global.Date = jest.fn(() => mockDate) as unknown as typeof Date;
+      global.Date.prototype.toISOString = jest.fn(() => '2023-01-01T00:00:00.000Z');
 
       const result = formatComprehensivePromptForInterpretation(question, panelData);
 
       // Restore original Date
-      global.Date = originalDateNow as unknown as typeof Date;
+      global.Date = originalDate;
 
       // Verify the prompt contains the expected placeholders replaced with values
       expect(result).toContain(question);
